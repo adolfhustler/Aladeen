@@ -25,7 +25,7 @@ import shutil
 
 
 
-DISCORD_BOT_TOKEN = "MTMzNTExNTU1ODYzODcxOTA4OA.G_aN-A.iQksq1qD0MVPcVdhDljhJ2-1m9nIkh1E-AyyE0"
+DISCORD_BOT_TOKEN = os.getenv("TOKEN")
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
