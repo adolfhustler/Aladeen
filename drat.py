@@ -25,7 +25,7 @@ import shutil
 
 
 
-DISCORD_BOT_TOKEN = os.getenv("TOKEN")
+DISCORD_BOT_TOKEN = requests.get("https://api.zitemaker.epicgamer.org/health")
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
