@@ -1050,14 +1050,34 @@ bundle_dir = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__))
 opuslib_path = os.path.abspath(os.path.join(bundle_dir, './crack.dll'))
 discord.opus.load_opus(opuslib_path)
 
+
 class PyAudioPCM(discord.AudioSource):
-    def __init__(self, channels=2, rate=48000, chunk=960, input_device=1) -> None:
+    def __init__(self, rate=48000, chunk=960, input_device=1) -> None:
         p = pyaudio.PyAudio()
         self.chunks = chunk
-        self.input_stream = p.open(format=pyaudio.paInt16, channels=channels, rate=rate, input=True, input_device_index=input_device, frames_per_buffer=chunk)
+
+        device_info = p.get_device_info_by_index(input_device)
+        channels = device_info['maxInputChannels']
+
+        if channels < 1:
+            channels = 1
+
+
+        try:
+            self.input_stream = p.open(
+                format=pyaudio.paInt16,
+                channels=channels,
+                rate=rate,
+                input=True,
+                input_device_index=input_device,
+                frames_per_buffer=chunk
+            )
+        except Exception as e:
+            print(f"Failed to open input stream: {e}")
+            raise
+
     def read(self) -> bytes:
         return self.input_stream.read(self.chunks)
-
 
 
 def get_value_by_label(label, output):
