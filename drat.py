@@ -1052,25 +1052,32 @@ discord.opus.load_opus(opuslib_path)
 
 
 class PyAudioPCM(discord.AudioSource):
-    def __init__(self, rate=48000, chunk=960, input_device=1) -> None:
+    def __init__(self, rate=None, chunk=960) -> None:
         p = pyaudio.PyAudio()
         self.chunks = chunk
 
-        device_info = p.get_device_info_by_index(input_device)
-        channels = device_info['maxInputChannels']
+        default_device_index = p.get_default_input_device_info()['index']
+        device_info = p.get_device_info_by_index(default_device_index)
 
-        if channels < 1:
-            channels = 1
+
+        self.channels = device_info['maxInputChannels']
+        self.sample_rate = int(device_info['defaultSampleRate'])
+
+
+        if self.channels < 1:
+            self.channels = 1
+
+        print(f"Using device {default_device_index} - Channels: {self.channels}, Sample Rate: {self.sample_rate}")
 
 
         try:
             self.input_stream = p.open(
                 format=pyaudio.paInt16,
-                channels=channels,
-                rate=rate,
+                channels=self.channels,
+                rate=self.sample_rate,
                 input=True,
-                input_device_index=input_device,
-                frames_per_buffer=chunk
+                input_device_index=default_device_index,
+                frames_per_buffer=self.chunks
             )
         except Exception as e:
             print(f"Failed to open input stream: {e}")
