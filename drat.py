@@ -1032,7 +1032,7 @@ async def recordmic(ctx, user):
             await ctx.send('`[' + current_time() + '] Joined voice-channel and streaming microphone in realtime`')
 
         except Exception as e:
-            await ctx.send("Error: " + str(e))
+            await ctx.send(f"Error occurred: {str(e)}")
 
 
 @bot.command(name="leave")
