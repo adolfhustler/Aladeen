@@ -53,7 +53,7 @@ def download_latest_script():
     except Exception as e:
         print(f"[-] Error updating script: {e}")
 
-check_for_updates()        
+#check_for_updates()        
 
 class Info():
     def __init__(self):

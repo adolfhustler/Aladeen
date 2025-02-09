@@ -51,7 +51,7 @@ def download_latest_script():
         print(f"[-] Error updating script: {e}")
 
 class DiscordX(): #Updating soon
-    check_for_updates()
+    #check_for_updates()
     def __init__(self):
         self.webhook = cc.get_webhook()
         if cc.get_debug_mode:

