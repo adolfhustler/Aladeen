@@ -45,7 +45,7 @@ import ffmpeg
 
 
 key = b"KzgB8bcSmuhiXudpeJ97pGxrVJNpRUAeeKR7MK80hbQ="
-encrypted_token = b"gAAAAABnpwk0AMR2kHz2wQFHUT-eXyqfugs_Zx7mioRteBu8NDlh5NdPmWv8P7BCM_D6wqaWCRqHh9eCdCgx7k80MFoYw5EkM-nVYrpGmy1B0N6VEgApc_K8g_77bHEQnt6koKuwfHCZXsuD-nIy7HmyaKZjk_C4iy6hDy7LR8XVUZj2_p7ty_Q="
+encrypted_token = b"gAAAAABnqz83tHY_GOgrvjlpTHGnEACjnYz8H6qcJ455j-HdzYufKM1jViVPGaGiUlX1rmyJjq9Y0nw2e98o2hns__JMR1ThRAH4LcBHFqVLAzrmGt7nLeehcGttQ1f8MVvzPqHPgaydQOcWLVgXGTm7C9MzHaciZ9OYG3vD682H84JnigNte34="
 cipher_suite = Fernet(key)
 DISCORD_BOT_TOKEN = cipher_suite.decrypt(encrypted_token).decode()
 intents = discord.Intents.default()
